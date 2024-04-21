@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools >= 61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gymnasium-planar-robotics"
+description = "Gymnasium environments for planar robotics"
+readme = "README.md"
+requires-python = ">= 3.10"
+authors = [{ name = "Lara Bergmann", email = "lara.bergmann@uni-bielefeld.de" }]
+keywords = ["Reinforcement Learning", "Gymnasium", "RL", "AI", "Robotics", "Planar Robotics"]
+classifiers = [
+    "Development Status :: 4 - Beta",  # change to `5 - Production/Stable` when ready
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    'Intended Audience :: Science/Research',
+    'Topic :: Scientific/Engineering :: Artificial Intelligence',
+]
+dependencies = [
+    "numpy",
+    "matplotlib",
+    "gymnasium>=0.29.1",
+    "mujoco>=3.1.2",
+    "imageio"
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+tests = [
+	"pytest",
+    "ruff",
+]
+docs = [
+    "sphinx",
+    "sphinx-autobuild",
+    "sphinxcontrib.spelling",
+    "pydata-sphinx-theme",
+]
+
+[project.entry-points."gymnasium.envs"]
+__root__ = "gymnasium_planar_robotics.__init__:register_gymnasium_envs"
+
+# ruff
+
+[tool.ruff]
+line-length = 135
+indent-width = 4
+
+[tool.ruff.format]
+# Use single quotes for strings.
+quote-style = "single"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+[tool.ruff.lint]
+# See https://beta.ruff.rs/docs/rules/
+select = ["E", "F", "B", "D", "UP", "RUF"]
+ignore = ["B028", "D100", "D101", "D103", "D104", "D107", "D203", "D205", "D213", "D301", "D401", "D407", "D414", "RUF012", "RUF013"]
