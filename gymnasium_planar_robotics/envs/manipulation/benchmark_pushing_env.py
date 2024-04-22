@@ -363,10 +363,13 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
                     + f'No valid configuration found within {counter} trails. Consider choosing more tiles.'
                 )
             self.object_xy_start_pos = self.np_random.uniform(low=self.min_xy_pos, high=self.max_xy_pos, size=(self.num_movers, 2))
-            dist_start_valid = (
-                np.linalg.norm(self.object_xy_start_pos - start_qpos[:, :2], ord=2, axis=1)
-                > self.object_length_xy + np.linalg.norm(self.c_size + self.c_size_offset, ord=2)
-            ).all()
+            
+            if self.c_shape == 'circle':
+                min_dist = 2*(self.c_size + self.c_size_offset)
+            else:
+                # self.c_shape == 'box'
+                min_dist = 2*np.linalg.norm(self.c_size + self.c_size_offset, ord=2)
+            dist_start_valid = (np.linalg.norm(self.object_xy_start_pos - start_qpos[:, :2], ord=2, axis=1) > min_dist).all()
         self.object_xy_start_pos = self.object_xy_start_pos.flatten()
 
         # sample a new goal position for the object
