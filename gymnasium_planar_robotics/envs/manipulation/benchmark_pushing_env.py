@@ -626,8 +626,8 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
         """
         if isinstance(info, np.ndarray):
             batch_size = info.shape[0]
-            mover_collisions = np.zeros(batch_size)
-            wall_collisions = np.zeros(batch_size)
+            mover_collisions = np.zeros(batch_size).astype(bool)
+            wall_collisions = np.zeros(batch_size).astype(bool)
 
             for i in range(0, batch_size):
                 mover_collisions[i] = info[i]['mover_collision']
