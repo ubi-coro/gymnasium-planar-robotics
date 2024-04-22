@@ -529,6 +529,9 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
         """
         dist = self._calc_eucl_dist_xy(achieved_goal=achieved_goal, desired_goal=desired_goal).flatten()
         is_success = np.sum(dist <= self.threshold_pos) == self.num_movers and not mover_collision and not wall_collision
+        assert not isinstance(is_success, np.ndarray)
+        assert not isinstance(mover_collision, np.ndarray)
+        assert not isinstance(wall_collision, np.ndarray)
         info = {'is_success': is_success, 'mover_collision': mover_collision, 'wall_collision': wall_collision}
         return info
 

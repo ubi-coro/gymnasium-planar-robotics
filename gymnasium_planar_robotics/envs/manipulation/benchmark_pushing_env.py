@@ -551,7 +551,11 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
         """
         assert not mover_collision
         dist = self._calc_eucl_dist_xy(achieved_goal=achieved_goal, desired_goal=desired_goal).flatten()
-        is_success = dist <= self.threshold_pos and not wall_collision
+        assert dist.shape == (1,)
+        is_success = (dist <= self.threshold_pos)[0] and not wall_collision
+        assert not isinstance(is_success, np.ndarray)
+        assert not isinstance(mover_collision, np.ndarray)
+        assert not isinstance(wall_collision, np.ndarray)
         info = {'is_success': is_success, 'mover_collision': mover_collision, 'wall_collision': wall_collision}
         return info
 
