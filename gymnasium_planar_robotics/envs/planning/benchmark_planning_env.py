@@ -49,10 +49,10 @@ possible acceleration (see environment parameters).
 Immediate Rewards
 -----------------
 
-The agent receives a reward of 50 if all movers reached their goals without collisions. For each timestep in which at least mover has
-not reached its goal and in which there is no collision, the environments emits the following immediate reward:
-number of movers that have not reached their goals * (-0.01)
-In case of a collision either with another mover or with a wall, the agent receives a reward of -50.
+The agent receives a reward of 50 if all movers reached their goals without collisions. In case of a collision either with another
+mover or with a wall, the agent receives a reward of -50. For each timestep in which at least mover has not reached its goal and in
+which there is no collision, the environments emits the following immediate reward:
+sum(-10 * Euclidean distance between mover and goal of all movers that have not reached their goal)
 
 Episode Termination
 -------------------
@@ -137,7 +137,7 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
     :param learn_jerk: whether to learn the jerk, defaults to False. If set to False, the acceleration is learned, i.e. the policy
         output.
     :param threshold_pos: the position threshold used to determine whether a mover has reached its goal position, defaults
-        to 0.01 [m]
+        to 0.05 [m]
     """
 
     def __init__(
@@ -158,7 +158,7 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
         a_max: float = 10.0,
         j_max: float = 100.0,
         learn_jerk: bool = False,
-        threshold_pos: float = 0.01,
+        threshold_pos: float = 0.05,
     ) -> None:
         self.learn_jerk = learn_jerk
 
@@ -471,7 +471,7 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
         mask_all_goals_reached = num_goals_reached == self.num_movers
 
         reward = -self.reward_success * mask_collision.astype(np.float64)
-        reward += -0.01 * (self.num_movers - num_goals_reached) * mask_no_collision.astype(np.float64)
+        reward += np.sum(-10 * dist_goal * (1 - goal_reached.astype(np.float64)), axis=1) * mask_no_collision.astype(np.float64)
         reward[np.bitwise_and(mask_all_goals_reached, mask_no_collision)] = self.reward_success
 
         assert reward.shape == (batch_size,)

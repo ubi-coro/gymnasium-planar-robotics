@@ -4,7 +4,7 @@ with planar motor systems can look like. This environment is therefore intended 
 The aim is to push an object with the mover to the desired goal position without collisions between a mover and a wall by
 specifying either the jerk or the acceleration of the mover. The starting positions of the mover and object as well as the
 object goal position are chosen randomly at the start of a new episode. This environment contains only one object and one
-mover. In addition, the tile layout is set to a 4x4 layout. In this environment, positions, velocities, accelerations and jerks have
+mover. In addition, the tile layout is set to a 3x3 layout. In this environment, positions, velocities, accelerations and jerks have
 the units m, m/s, m/s² and m/s³, respectively.
 
 Observation Space
@@ -50,7 +50,7 @@ Immediate Rewards
 
 The agent receives a reward of 0, if the object has reached its goal without a collision between the mover and a wall.
 For each timestep in which the object has not reached its goal and in which there is no collision between the mover and a wall, the
-environment emits a small negative reward of -0.1.
+environment emits a small negative reward of -1.
 In the case of a collision between the mover and a wall, the agent receives a large negative reward of -100.
 
 Episode Termination and Truncation
@@ -64,6 +64,14 @@ to the desired goal position until the end of an episode.
 .. note::
     The term 'episode steps' refers to the number of calls of env.steps(). The number of MuJoCo simulation steps, i.e. control
     cycles, is a multiple of the number of episode steps.
+
+Environment Reset
+-----------------
+When the environment is reset, new (x,y) starting positions for the mover and the object as well as a new goal position are chosen at
+random. It is ensured that the new start position of the mover is collision-free, i.e. no wall collision and no collision with the
+object. In addition, the object's start position is chosen such that the mover fits between the wall and the object. This is important
+to ensure that the object can be pushed in all directions. After resetting the environment, the distance between the object and the
+goal is larger than 2 * ``threshold_pos``. The object must therefore be pushed by the agent to successfully complete the episode.
 
 Parameters
 ----------
@@ -128,7 +136,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
     :param learn_jerk: whether to learn the jerk, defaults to False. If set to False, the acceleration is learned, i.e. the policy
         output.
     :param threshold_pos: the position threshold used to determine whether a mover has reached its goal position, defaults
-        to 0.01 [m]
+        to 0.05 [m]
     """
 
     def __init__(
@@ -144,12 +152,12 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
         a_max: float = 10.0,
         j_max: float = 100.0,
         learn_jerk: bool = False,
-        threshold_pos: float = 0.01,
+        threshold_pos: float = 0.05,
     ) -> None:
         self.learn_jerk = learn_jerk
 
         # object parameters, object type: box
-        self.object_length_xy = 0.05 / 2  # [m] (half-size)
+        self.object_length_xy = 0.06 / 2  # [m] (half-size)
         self.object_height = 0.04 / 2  # [m] (half-size)
         self.object_mass = 0.01  # [kg]
         self.object_xy_start_pos = np.array([0.12, 0.36])
@@ -163,7 +171,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
         self.impedance_controller = None
 
         super().__init__(
-            layout_tiles=np.ones((4, 4)),
+            layout_tiles=np.ones((3, 3)),
             num_movers=1,
             tile_params=None,
             mover_params=mover_params,
@@ -222,6 +230,9 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
             np.array([np.max(self.x_pos_tiles) + (self.tile_size[0] / 2), np.max(self.y_pos_tiles) + (self.tile_size[1] / 2)])
             - safety_margin
         )
+        # minimum and maximum possible object (x,y)-positions
+        self.object_min_xy_pos = self.min_xy_pos + safety_margin
+        self.object_max_xy_pos = self.max_xy_pos - safety_margin
 
         # impedance contoller
         self.impedance_controller = MoverImpedanceController(
@@ -240,6 +251,18 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
         self.mover_actuator_y_names = mujoco_utils.get_mujoco_type_names(
             self.model, obj_type='actuator', name_pattern='mover_actuator_y'
         )
+
+        # minimum distance between object and mover after env reset
+        if self.c_shape == 'circle':
+            self.min_mo_dist = max(
+                np.linalg.norm(self.object_length_xy + self.mover_size.flatten()[:2], ord=2), self.c_size + self.c_size_offset
+            )
+        else:
+            # self.c_shape == 'box'
+            self.min_mo_dist = max(
+                np.linalg.norm(self.object_length_xy + self.mover_size.flatten()[:2], ord=2),
+                np.linalg.norm(self.c_size + self.c_size_offset, ord=2),
+            )
 
     def _custom_xml_string_callback(self, custom_model_xml_strings: dict | None) -> dict[str, str]:
         """For each mover, this callback adds actuators to the ``custom_model_xml_strings``-dict, depending on whether the jerk or
@@ -322,10 +345,15 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
 
         if self.render_mode is not None:
             self.viewer_collection.reload_model(self.model, self.data)
+        self.render()
 
     def _reset_callback(self, options: dict[str, any] | None = None) -> None:
-        """Reset the start position of mover and object and the object goal position and reload the model. It is checked whether the
+        """Reset the start position of mover and object and the object goal position and reload the model. It is ensured that the
         new start position of the mover is collision-free, i.e. no wall collision and no collision with the object.
+        In addition, the object's start position is chosen such that the mover fits between the wall and the object. This is important
+        to ensure that the object can be pushed in all directions. After resetting the environment, the distance between the object
+        and the goal is larger than 2 * ``threshold_pos``. The object must therefore be pushed by the agent to successfully complete
+        the episode.
 
         :param options: not used in this environment
         """
@@ -334,23 +362,8 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
         start_qpos[:, 2] = self.initial_mover_zpos
         start_qpos[:, 3] = 1  # quaternion (1,0,0,0)
 
-        # ensure that the start position is chosen such that there is no wall collision
-        counter = 0
-        all_start_pos_valid = False
-        while not all_start_pos_valid:
-            counter += 1
-            if counter > 0 and counter % 100 == 0:
-                logger.warn(
-                    'Trying to find a collision-free start position for the mover. '
-                    + f'No valid configuration found within {counter} trails. Consider choosing more tiles.'
-                )
-
-            start_qpos[:, :2] = self.np_random.uniform(low=self.min_xy_pos, high=self.max_xy_pos, size=(self.num_movers, 2))
-            # check wall collision
-            pos_is_valid = self.qpos_is_valid(qpos=start_qpos, c_size=self.c_size, add_safety_offset=True)
-
-            if pos_is_valid.all():
-                all_start_pos_valid = True
+        # choose a new start position for the mover
+        start_qpos[:, :2] = self.np_random.uniform(low=self.min_xy_pos, high=self.max_xy_pos, size=(self.num_movers, 2))
 
         # sample a new start position for the object and ensure that it does not collide with the mover
         counter = 0
@@ -362,18 +375,32 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
                     'Trying to find a start position for the object.'
                     + f'No valid configuration found within {counter} trails. Consider choosing more tiles.'
                 )
-            self.object_xy_start_pos = self.np_random.uniform(low=self.min_xy_pos, high=self.max_xy_pos, size=(self.num_movers, 2))
+            self.object_xy_start_pos = self.np_random.uniform(
+                low=self.object_min_xy_pos, high=self.object_max_xy_pos, size=(self.num_movers, 2)
+            )
+            # check distance between object and mover
+            dist_start_valid = (np.linalg.norm(self.object_xy_start_pos - start_qpos[:, :2], ord=2, axis=1) > self.min_mo_dist).all()
 
-            if self.c_shape == 'circle':
-                min_dist = 2 * (self.c_size + self.c_size_offset)
-            else:
-                # self.c_shape == 'box'
-                min_dist = 2 * np.linalg.norm(self.c_size + self.c_size_offset, ord=2)
-            dist_start_valid = (np.linalg.norm(self.object_xy_start_pos - start_qpos[:, :2], ord=2, axis=1) > min_dist).all()
         self.object_xy_start_pos = self.object_xy_start_pos.flatten()
 
         # sample a new goal position for the object
-        self.object_xy_goal_pos = self.np_random.uniform(low=self.min_xy_pos, high=self.max_xy_pos, size=(2,))
+        counter = 0
+        dist_goal_valid = False
+        while not dist_goal_valid:
+            counter += 1
+            if counter > 0 and counter % 100 == 0:
+                logger.warn(
+                    f'Trying to find a goal position. No valid configuration found within {counter} trails. Consider choosing more '
+                    + 'tiles or a smaller position threshold.'
+                )
+            self.object_xy_goal_pos = self.np_random.uniform(
+                low=self.object_min_xy_pos, high=self.object_max_xy_pos, size=(self.num_movers, 2)
+            )
+            dist_goal_valid = (
+                np.linalg.norm(self.object_xy_start_pos - self.object_xy_goal_pos.flatten(), ord=2) > 2 * self.threshold_pos
+            )
+
+        self.object_xy_goal_pos = self.object_xy_goal_pos.flatten()
 
         # reload model with new start pos and goal pos
         self.reload_model(mover_start_xy_pos=start_qpos[:, :2])
@@ -482,7 +509,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
         mask_goal_reached = dist_goal <= self.threshold_pos
 
         reward = self.reward_wall_collision * wall_collisions.astype(np.float64)
-        reward += -0.1 * mask_no_collision.astype(np.float64)
+        reward += -1.0 * mask_no_collision.astype(np.float64)
         reward[np.bitwise_and(mask_goal_reached, mask_no_collision)] = 0
 
         assert reward.shape == (batch_size,)

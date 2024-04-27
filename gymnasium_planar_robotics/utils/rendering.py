@@ -1,10 +1,65 @@
 import numpy as np
 import mujoco.viewer
-from gymnasium.envs.mujoco.mujoco_rendering import MujocoRenderer, BaseRender, OffScreenViewer
+from gymnasium.envs.mujoco.mujoco_rendering import MujocoRenderer, BaseRender, OffScreenViewer, WindowViewer
 from mujoco import MjData, MjModel
 import matplotlib.pyplot as plt
 from gymnasium_planar_robotics.utils import rotations_utils
 from matplotlib.patches import Rectangle, Circle, Arrow
+
+
+class MujocoWindowViewer(WindowViewer):
+    """A window renderer class for MuJoCo environments with custom overlays.
+
+    :param model: mjModel of the MuJoCo environment
+    :param data: mjData of the MuJoCo environment
+    """
+
+    def __init__(self, model: MjModel, data: MjData) -> None:
+        super().__init__(model=model, data=data)
+        self.is_running = True
+
+    def close(self) -> None:
+        """Close the viewer."""
+        super().close()
+        self.is_running = False
+
+    def _create_overlay(self):
+        topleft = mujoco.mjtGridPos.mjGRID_TOPLEFT
+        bottomleft = mujoco.mjtGridPos.mjGRID_BOTTOMLEFT
+
+        if self._render_every_frame:
+            self.add_overlay(topleft, '', '')
+        else:
+            self.add_overlay(
+                topleft,
+                f'Run speed = {self._run_speed:.3f} x real time',
+                '[S]lower, [F]aster',
+            )
+        self.add_overlay(
+            topleft,
+            f'Switch camera (#cams = {self.model.ncam + 1})',
+            f'[Tab] (camera ID = {self.cam.fixedcamid})',
+        )
+        self.add_overlay(topleft, '[C]ontact forces', 'On' if self._contacts else 'Off')
+        self.add_overlay(topleft, 'T[r]ansparent', 'On' if self._transparent else 'Off')
+        if self._paused is not None:
+            if not self._paused:
+                self.add_overlay(topleft, 'Stop', '[Space]')
+            else:
+                self.add_overlay(topleft, 'Start', '[Space]')
+                self.add_overlay(topleft, 'Advance simulation by one step', '[right arrow]')
+        self.add_overlay(topleft, 'Referenc[e] frames', 'On' if self.vopt.frame == 1 else 'Off')
+        self.add_overlay(topleft, '[H]ide Menu', '')
+        if self._image_idx > 0:
+            fname = self._image_path % (self._image_idx - 1)
+            self.add_overlay(topleft, 'Cap[t]ure frame', f'Saved as {fname}')
+        else:
+            self.add_overlay(topleft, 'Cap[t]ure frame', '')
+        self.add_overlay(topleft, 'Toggle geomgroup visibility', '0-4')
+
+        self.add_overlay(bottomleft, 'FPS', f'{int(1 / self._time_per_render)} ')
+        self.add_overlay(bottomleft, 'Step', str(round(self.data.time / self.model.opt.timestep)))
+        self.add_overlay(bottomleft, 'timestep', f'{self.model.opt.timestep:.5f}')
 
 
 class MujocoOffScreenViewer(OffScreenViewer):
@@ -39,8 +94,7 @@ class MujocoOffScreenViewer(OffScreenViewer):
 
 class MujocoViewerCollection(MujocoRenderer):
     """A manager for all renderers for a MuJoCo environment.
-    It provides the possibility to manage one renderer with render_mode 'human', which is the standard MuJoCo viewer
-    (launch_passive), and multiple offscreen renderers.
+    It provides the possibility to manage one renderer with render_mode 'human' and multiple offscreen renderers.
 
     :param model: mjModel of the MuJoCo environment
     :param data: mjData of the MuJoCo environment
@@ -48,6 +102,8 @@ class MujocoViewerCollection(MujocoRenderer):
         (see https://mujoco.readthedocs.io/en/latest/XMLreference.html?highlight=camera#visual-global), defaults to None
     :param width_no_camera_specified: if render_mode != 'human' and no width is specified, this value is used, defaults to 1240
     :param height_no_camera_specified: if render_mode != 'human' and no height is specified, this value is used, defaults to 1080
+    :param use_mj_passive_viewer: whether the MuJoCo passive_viewer should be used, defaults to False. If set to False, the Gymnasium
+        MuJoCo WindowViewer with custom overlays is used.
     """
 
     def __init__(
@@ -57,9 +113,12 @@ class MujocoViewerCollection(MujocoRenderer):
         default_cam_config: dict | None = None,
         width_no_camera_specified: int = 1240,
         height_no_camera_specified: int = 1080,
+        use_mj_passive_viewer=False,
     ) -> None:
         self.width_no_camera_specified = width_no_camera_specified
         self.height_no_camera_specified = height_no_camera_specified
+
+        self.use_mj_passive_viewer = use_mj_passive_viewer
 
         super().__init__(model, data, default_cam_config)
 
@@ -110,7 +169,10 @@ class MujocoViewerCollection(MujocoRenderer):
             return img
         elif render_mode.startswith('human'):
             self._update_viewer(render_mode)
-            return self.viewer.sync()
+            if self.use_mj_passive_viewer:
+                return self.viewer.sync()
+            else:
+                return self.viewer.render()
 
     def window_viewer_is_running(self) -> bool:
         """Check whether the window renderer (render_mode 'human') is active, i.e. the window is open.
@@ -119,7 +181,12 @@ class MujocoViewerCollection(MujocoRenderer):
         """
         viewer_name = self._get_viewer_name(render_mode='human')
         viewer = self._viewers.get(viewer_name)
-        return viewer.is_running() if viewer is not None else False
+        if viewer is None:
+            return False
+        if self.use_mj_passive_viewer:
+            return viewer.is_running()
+        else:
+            return viewer.is_running is not None
 
     def _get_viewer_name(self, render_mode: str, camera_id: int | None = None) -> str:
         """Return the name of the desired viewer. If the render_mode is 'human', viewer_name is 'human', since there can only be one
@@ -170,9 +237,11 @@ class MujocoViewerCollection(MujocoRenderer):
                 self._set_cam_config()
         else:
             if self.viewer is None:
-                self.viewer = mujoco.viewer.launch_passive(self.model, self.data)
+                if self.use_mj_passive_viewer:
+                    self.viewer = mujoco.viewer.launch_passive(self.model, self.data)
+                else:
+                    self.viewer = MujocoWindowViewer(self.model, self.data)
                 self._set_cam_config()
-
                 self._viewers[viewer_name] = self.viewer
 
         if len(self._viewers.keys()) > 1:
@@ -193,10 +262,15 @@ class MujocoViewerCollection(MujocoRenderer):
         self.data = data
 
         for viewer_name in self._viewers.keys():
-            if 'rgb_array' in viewer_name or 'depth_array' in viewer_name:
+            if 'rgb_array' in viewer_name or 'depth_array' in viewer_name or not self.use_mj_passive_viewer:
                 viewer = self._viewers[viewer_name]
                 viewer.model = model
                 viewer.data = data
+            elif 'human' in viewer_name and self.use_mj_passive_viewer:
+                self._viewers[viewer_name].close()
+                viewer = mujoco.viewer.launch_passive(self.model, self.data)
+                self._set_cam_config()
+                self._viewers[viewer_name] = viewer
 
 
 class Matplotlib2DViewer:
