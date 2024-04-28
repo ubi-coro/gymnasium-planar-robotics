@@ -137,7 +137,7 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
     :param learn_jerk: whether to learn the jerk, defaults to False. If set to False, the acceleration is learned, i.e. the policy
         output.
     :param threshold_pos: the position threshold used to determine whether a mover has reached its goal position, defaults
-        to 0.05 [m]
+        to 0.1 [m]
     """
 
     def __init__(
