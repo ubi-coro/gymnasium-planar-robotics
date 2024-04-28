@@ -49,10 +49,10 @@ possible acceleration (see environment parameters).
 Immediate Rewards
 -----------------
 
-The agent receives a reward of 50 if all movers reached their goals without collisions. In case of a collision either with another
-mover or with a wall, the agent receives a reward of -50. For each timestep in which at least mover has not reached its goal and in
-which there is no collision, the environments emits the following immediate reward:
-sum(-10 * Euclidean distance between mover and goal of all movers that have not reached their goal)
+The agent receives a reward of 10 if all movers reached their goals without collisions. For each timestep in which at least mover has
+not reached its goal and in which there is no collision, the environments emits the following immediate reward:
+number of movers that have not reached their goals * (-1)
+In case of a collision either with another mover or with a wall, the agent receives a reward of -10.
 
 Episode Termination
 -------------------
@@ -158,7 +158,7 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
         a_max: float = 10.0,
         j_max: float = 100.0,
         learn_jerk: bool = False,
-        threshold_pos: float = 0.05,
+        threshold_pos: float = 0.1,
     ) -> None:
         self.learn_jerk = learn_jerk
 
@@ -184,7 +184,7 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
         # position threshold in m
         self.threshold_pos = threshold_pos
         # reward in case of success
-        self.reward_success = 50
+        self.reward_success = 10
         # whether to show a 2D matplotlib plot
         self.show_2D_plot = show_2D_plot
         if self.show_2D_plot and mover_colors_2D_plot is None:
@@ -351,10 +351,8 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
         all_goal_pos_reachable = False
         while not all_goal_pos_reachable:
             goal_qpos[:, :2] = self.np_random.uniform(low=self.min_xy_pos, high=self.max_xy_pos, size=(self.num_movers, 2))
-            dist_goals_valid = (np.linalg.norm(goal_qpos[:, :2] - start_qpos[:, :2], ord=2, axis=1) > self.threshold_pos * 2).all()
-            if dist_goals_valid:
-                goal_pos_reachable = self.qpos_is_valid(qpos=goal_qpos, c_size=self.c_size, add_safety_offset=True)
-                all_goal_pos_reachable = np.sum(goal_pos_reachable) == self.num_movers
+            goal_pos_reachable = self.qpos_is_valid(qpos=goal_qpos, c_size=self.c_size, add_safety_offset=True)
+            all_goal_pos_reachable = np.sum(goal_pos_reachable) == self.num_movers
 
         self.goals = goal_qpos[:, :2].copy()
 
@@ -471,7 +469,7 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
         mask_all_goals_reached = num_goals_reached == self.num_movers
 
         reward = -self.reward_success * mask_collision.astype(np.float64)
-        reward += np.sum(-10 * dist_goal * (1 - goal_reached.astype(np.float64)), axis=1) * mask_no_collision.astype(np.float64)
+        reward += -1.0 * (self.num_movers - num_goals_reached) * mask_no_collision.astype(np.float64)
         reward[np.bitwise_and(mask_all_goals_reached, mask_no_collision)] = self.reward_success
 
         assert reward.shape == (batch_size,)

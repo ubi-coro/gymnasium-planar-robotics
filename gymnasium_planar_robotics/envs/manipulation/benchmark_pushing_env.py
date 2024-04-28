@@ -51,13 +51,13 @@ Immediate Rewards
 The agent receives a reward of 0, if the object has reached its goal without a collision between the mover and a wall.
 For each timestep in which the object has not reached its goal and in which there is no collision between the mover and a wall, the
 environment emits a small negative reward of -1.
-In the case of a collision between the mover and a wall, the agent receives a large negative reward of -100.
+In the case of a collision between the mover and a wall, the agent receives a large negative reward of -50.
 
 Episode Termination and Truncation
 ----------------------------------
 
-Each episode has a time limit of 100 environment steps. If the time limit is reached, the episode is truncated. Thus, each episode
-has 100 environment steps, except that the mover collides with a wall. In this case, the episode terminates immediately
+Each episode has a time limit of 50 environment steps. If the time limit is reached, the episode is truncated. Thus, each episode
+has 50 environment steps, except that the mover collides with a wall. In this case, the episode terminates immediately
 regardless of the time limit. An episode is not terminated when the object reaches its goal position, as the object has to remain close
 to the desired goal position until the end of an episode.
 
@@ -70,8 +70,7 @@ Environment Reset
 When the environment is reset, new (x,y) starting positions for the mover and the object as well as a new goal position are chosen at
 random. It is ensured that the new start position of the mover is collision-free, i.e. no wall collision and no collision with the
 object. In addition, the object's start position is chosen such that the mover fits between the wall and the object. This is important
-to ensure that the object can be pushed in all directions. After resetting the environment, the distance between the object and the
-goal is larger than 2 * ``threshold_pos``. The object must therefore be pushed by the agent to successfully complete the episode.
+to ensure that the object can be pushed in all directions.
 
 Parameters
 ----------
@@ -157,7 +156,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
         self.learn_jerk = learn_jerk
 
         # object parameters, object type: box
-        self.object_length_xy = 0.06 / 2  # [m] (half-size)
+        self.object_length_xy = 0.07 / 2  # [m] (half-size)
         self.object_height = 0.04 / 2  # [m] (half-size)
         self.object_mass = 0.01  # [kg]
         self.object_xy_start_pos = np.array([0.12, 0.36])
@@ -192,7 +191,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
         # position threshold in m
         self.threshold_pos = threshold_pos
         # reward for a collision between the mover and a wall
-        self.reward_wall_collision = -100
+        self.reward_wall_collision = -50
 
         # remember object joint name
         self.object_joint_name = mujoco_utils.get_mujoco_type_names(self.model, obj_type='joint', name_pattern='object')[0]
@@ -351,9 +350,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
         """Reset the start position of mover and object and the object goal position and reload the model. It is ensured that the
         new start position of the mover is collision-free, i.e. no wall collision and no collision with the object.
         In addition, the object's start position is chosen such that the mover fits between the wall and the object. This is important
-        to ensure that the object can be pushed in all directions. After resetting the environment, the distance between the object
-        and the goal is larger than 2 * ``threshold_pos``. The object must therefore be pushed by the agent to successfully complete
-        the episode.
+        to ensure that the object can be pushed in all directions.
 
         :param options: not used in this environment
         """
@@ -384,23 +381,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
         self.object_xy_start_pos = self.object_xy_start_pos.flatten()
 
         # sample a new goal position for the object
-        counter = 0
-        dist_goal_valid = False
-        while not dist_goal_valid:
-            counter += 1
-            if counter > 0 and counter % 100 == 0:
-                logger.warn(
-                    f'Trying to find a goal position. No valid configuration found within {counter} trails. Consider choosing more '
-                    + 'tiles or a smaller position threshold.'
-                )
-            self.object_xy_goal_pos = self.np_random.uniform(
-                low=self.object_min_xy_pos, high=self.object_max_xy_pos, size=(self.num_movers, 2)
-            )
-            dist_goal_valid = (
-                np.linalg.norm(self.object_xy_start_pos - self.object_xy_goal_pos.flatten(), ord=2) > 2 * self.threshold_pos
-            )
-
-        self.object_xy_goal_pos = self.object_xy_goal_pos.flatten()
+        self.object_xy_goal_pos = self.np_random.uniform(low=self.object_min_xy_pos, high=self.object_max_xy_pos, size=(2,))
 
         # reload model with new start pos and goal pos
         self.reload_model(mover_start_xy_pos=start_qpos[:, :2])

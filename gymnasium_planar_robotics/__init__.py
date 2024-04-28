@@ -1,4 +1,4 @@
-__version__ = '0.0.1a4'
+__version__ = '0.0.1a5'
 
 from gymnasium.envs.registration import register
 
@@ -18,5 +18,5 @@ def register_gymnasium_envs():
     register(
         id='BenchmarkPushingEnv',
         entry_point='gymnasium_planar_robotics.envs.manipulation.benchmark_pushing_env:BenchmarkPushingEnv',
-        max_episode_steps=100,
+        max_episode_steps=50,
     )

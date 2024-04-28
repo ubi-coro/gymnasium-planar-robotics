@@ -565,7 +565,7 @@ class BasicPlanarRoboticsEnv(ABC, gym.Env):
         num_movers = mover_qpos.shape[0]
         assert mover_qpos.shape == (num_movers, 7)
 
-        c_size_arr = self.get_c_size_arr(c_size=c_size, num_reps=num_movers)
+        c_size_arr = self.get_c_size_arr(c_size=c_size + self.c_size_offset * int(add_safety_offset), num_reps=num_movers)
 
         num_checks = np.sum(np.arange(start=1, stop=num_movers, step=1))
         mover_i_qpos = np.zeros((num_checks, 7))
@@ -584,9 +584,7 @@ class BasicPlanarRoboticsEnv(ABC, gym.Env):
             start_idx = stop_idx
 
         if self.c_shape == 'circle':
-            mover_collision = np.linalg.norm(mover_i_qpos[:, :2] - mover_j_qpos[:, :2], ord=2, axis=1) <= (
-                c_size_arr_i + c_size_arr_j + 2 * self.c_size_offset * int(add_safety_offset)
-            )
+            mover_collision = np.linalg.norm(mover_i_qpos[:, :2] - mover_j_qpos[:, :2], ord=2, axis=1) <= (c_size_arr_i + c_size_arr_j)
         elif self.c_shape == 'box':
             dist = np.linalg.norm(mover_i_qpos[:, :2] - mover_j_qpos[:, :2], ord=2, axis=1)
             max_size = np.max(np.concatenate((c_size_arr_i, c_size_arr_j), axis=1), axis=1)
@@ -597,8 +595,8 @@ class BasicPlanarRoboticsEnv(ABC, gym.Env):
                 mover_collision[mask_add_check] = geometry_2D_utils.check_rectangles_intersect(
                     qpos_r1=mover_i_qpos[mask_add_check, :],
                     qpos_r2=mover_j_qpos[mask_add_check, :],
-                    size_r1=(c_size_arr_i + self.c_size_offset * int(add_safety_offset))[mask_add_check, :],
-                    size_r2=(c_size_arr_j + self.c_size_offset * int(add_safety_offset))[mask_add_check, :],
+                    size_r1=c_size_arr_i[mask_add_check, :],
+                    size_r2=c_size_arr_j[mask_add_check, :],
                 )
 
         return mover_collision.any()
