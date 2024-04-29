@@ -57,8 +57,9 @@ In case of a collision either with another mover or with a wall, the agent recei
 Episode Termination
 -------------------
 
-An episode terminates if all movers have reached their goals without collisions or if there has been a collision between two movers or
-between a mover and a wall.
+Each episode has a time limit of 50 environment steps. If the time limit is reached, the episode is truncated. Thus, each episode
+has 50 environment steps, except that all movers have reached their goals without collisions or if there has been a collision between
+two movers or between a mover and a wall. In these cases, the episode terminates immediately regardless of the time limit.
 
 Parameters
 ----------
@@ -423,8 +424,8 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
     def compute_truncated(
         self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: dict[str, any] | None = None
     ) -> np.ndarray | bool:
-        """Check whether the truncation condition is satisfied. In this environment, the truncation condition is never satisfied. Thus,
-        this method always returns False.
+        """Check whether the truncation condition is satisfied. The truncation condition (a time limit in this environment) is
+        automatically checked by the Gymnasium TimeLimit Wrapper, which is why this method always returns False.
 
         :param achieved_goal: a numpy array of shape (batch_size, length achieved_goal) or (length achieved_goal,) containing the
             (x,y)-positions already achieved

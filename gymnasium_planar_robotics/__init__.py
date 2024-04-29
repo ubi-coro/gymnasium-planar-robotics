@@ -1,4 +1,4 @@
-__version__ = '0.0.1a5'
+__version__ = '0.0.1a6'
 
 from gymnasium.envs.registration import register
 
@@ -10,6 +10,7 @@ def register_gymnasium_envs():
     register(
         id='BenchmarkPlanningEnv',
         entry_point='gymnasium_planar_robotics.envs.planning.benchmark_planning_env:BenchmarkPlanningEnv',
+        max_episode_steps=50,
     )
 
     ################
