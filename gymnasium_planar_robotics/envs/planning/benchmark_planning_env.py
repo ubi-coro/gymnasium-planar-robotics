@@ -49,10 +49,10 @@ possible acceleration (see environment parameters).
 Immediate Rewards
 -----------------
 
-The agent receives a reward of 10 if all movers reached their goals without collisions. For each timestep in which at least mover has
+The agent receives a reward of 50 if all movers reached their goals without collisions. For each timestep in which at least mover has
 not reached its goal and in which there is no collision, the environments emits the following immediate reward:
 number of movers that have not reached their goals * (-1)
-In case of a collision either with another mover or with a wall, the agent receives a reward of -10.
+In case of a collision either with another mover or with a wall, the agent receives a reward of -50.
 
 Episode Termination
 -------------------
@@ -185,7 +185,7 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
         # position threshold in m
         self.threshold_pos = threshold_pos
         # reward in case of success
-        self.reward_success = 10
+        self.reward_success = 50
         # whether to show a 2D matplotlib plot
         self.show_2D_plot = show_2D_plot
         if self.show_2D_plot and mover_colors_2D_plot is None:

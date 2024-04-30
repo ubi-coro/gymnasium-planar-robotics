@@ -1,7 +1,7 @@
 Changelog
 =========
 
-Pre-Release v0.0.1a6
+Pre-Release v0.0.1a7
 --------------------
 
 General
