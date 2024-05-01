@@ -323,7 +323,7 @@ class Matplotlib2DViewer:
         self.num_movers = num_movers
         self.mover_sizes = mover_sizes
         self.mover_colors = mover_colors
-        if len(self.mover_colors) != self.num_movers:
+        if len(self.mover_colors) < self.num_movers:
             raise ValueError('The number of specified mover colors does not match the number of movers.')
         # collision params
         self.c_shape = c_shape

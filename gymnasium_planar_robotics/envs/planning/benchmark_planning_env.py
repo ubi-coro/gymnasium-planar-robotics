@@ -234,6 +234,13 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
             - safety_margin
         )
 
+        # minimum distance between any two goals
+        if self.c_shape == 'circle':
+            self.min_goal_dist = 2 * (self.c_size + self.c_size_offset)
+        else:
+            # self.c_shape == 'box'
+            self.min_goal_dist = 2 * np.linalg.norm(self.c_size + self.c_size_offset, ord=2)
+
         # 2D plot
         if self.show_2D_plot:
             self.matplotlib_2D_viewer = Matplotlib2DViewer(
@@ -313,7 +320,7 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
 
     def _reset_callback(self, options: dict[str, any] | None = None) -> None:
         """Reset the start and goal positions of all movers and reload the model. It is also checked whether the start positions are
-        collision-free (mover and wall collisions) and whether the new goals are reachable.
+        collision-free (mover and wall collisions) and whether the new goals can be reached without mover or wall collisions.
 
         :param options: not used in this environment
         """
@@ -348,12 +355,28 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
         goal_qpos[:, 2] = self.initial_mover_zpos
         goal_qpos[:, 3] = 1  # quaternion (1,0,0,0)
 
-        # ensure that all goal positions can be reached without wall collisions
-        all_goal_pos_reachable = False
-        while not all_goal_pos_reachable:
+        # ensure that all goal positions can be reached without wall and mover collisions
+        counter = 0
+        all_goal_pos_reachable, dist_goals_valid = False, False
+        while not all_goal_pos_reachable or not dist_goals_valid:
+            counter += 1
+            if counter > 0 and counter % 100 == 0:
+                logger.warn(
+                    'Trying to find valid goal positions for all movers. '
+                    + f'No valid configuration found within {counter} trails. Consider choosing fewer movers or more tiles.'
+                )
             goal_qpos[:, :2] = self.np_random.uniform(low=self.min_xy_pos, high=self.max_xy_pos, size=(self.num_movers, 2))
             goal_pos_reachable = self.qpos_is_valid(qpos=goal_qpos, c_size=self.c_size, add_safety_offset=True)
             all_goal_pos_reachable = np.sum(goal_pos_reachable) == self.num_movers
+            if all_goal_pos_reachable:
+                dist_goals_valid = True
+                for i in range(0, self.num_movers):
+                    for j in range(i + 1, self.num_movers):
+                        if np.linalg.norm(goal_qpos[i, :2] - goal_qpos[j, :2], ord=2) < self.min_goal_dist:
+                            dist_goals_valid = False
+                            break
+                    if not dist_goals_valid:
+                        break
 
         self.goals = goal_qpos[:, :2].copy()
 
