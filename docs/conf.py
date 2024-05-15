@@ -37,6 +37,7 @@ extensions = [
     'sphinxcontrib.spelling',
     'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
+    'sphinx_copybutton',
 ]
 
 templates_path = ['_templates']

@@ -1,6 +1,21 @@
-__version__ = '0.0.1a8'
+__version__ = '0.0.1a9'
 
 from gymnasium.envs.registration import register
+
+from gymnasium_planar_robotics.envs.basic_envs import (
+    BasicPlanarRoboticsSingleAgentEnv,
+    BasicPlanarRoboticsMultiAgentEnv,
+)
+from gymnasium_planar_robotics.utils.rendering import Matplotlib2DViewer, MujocoViewerCollection
+from gymnasium_planar_robotics.utils.impedance_control import MoverImpedanceController
+
+__all__ = [
+    'BasicPlanarRoboticsSingleAgentEnv',
+    'BasicPlanarRoboticsMultiAgentEnv',
+    'Matplotlib2DViewer',
+    'MujocoViewerCollection',
+    'MoverImpedanceController',
+]
 
 
 def register_gymnasium_envs():
@@ -8,7 +23,7 @@ def register_gymnasium_envs():
     # Planning     #
     ################
     register(
-        id='BenchmarkPlanningEnv',
+        id='BenchmarkPlanningEnv-v0',
         entry_point='gymnasium_planar_robotics.envs.planning.benchmark_planning_env:BenchmarkPlanningEnv',
         max_episode_steps=50,
     )
@@ -17,7 +32,7 @@ def register_gymnasium_envs():
     # Manipulation #
     ################
     register(
-        id='BenchmarkPushingEnv',
+        id='BenchmarkPushingEnv-v0',
         entry_point='gymnasium_planar_robotics.envs.manipulation.benchmark_pushing_env:BenchmarkPushingEnv',
         max_episode_steps=50,
     )

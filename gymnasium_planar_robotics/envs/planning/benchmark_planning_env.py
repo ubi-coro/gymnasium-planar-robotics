@@ -1,8 +1,8 @@
-"""The ``BenchmarkPlanningEnv`` is a very motion planning environment that should be understood as an example of how motion planning
+"""The ``BenchmarkPlanningEnv`` is a simple motion planning environment that should be understood as an example of how motion planning
 with planar motor systems can look like. This environment is therefore intended for parameter or algorithm tests.
 
 The aim is to learn to move all movers from random (x,y) start positions to variable (x,y) goal positions without collisions
-by specifying either the jerk or the acceleration. In this environment, positions, velocities, accelerations and jerks have
+by specifying either the jerk or the acceleration. In this environment, positions, velocities, accelerations, and jerks have
 the units m, m/s, m/s² and m/s³, respectively.
 
 Observation Space
@@ -49,8 +49,8 @@ possible acceleration (see environment parameters).
 Immediate Rewards
 -----------------
 
-The agent receives a reward of 50 if all movers reached their goals without collisions. For each timestep in which at least mover has
-not reached its goal and in which there is no collision, the environments emits the following immediate reward:
+The agent receives a reward of 50 if all movers reach their goals without collisions. For each timestep in which at least one mover has
+not reached its goal and in which there is no collision, the environment emits the following immediate reward:
 number of movers that have not reached their goals * (-1)
 In case of a collision either with another mover or with a wall, the agent receives a reward of -50.
 
@@ -61,6 +61,11 @@ Each episode has a time limit of 50 environment steps. If the time limit is reac
 has 50 environment steps, except that all movers have reached their goals without collisions or if there has been a collision between
 two movers or between a mover and a wall. In these cases, the episode terminates immediately regardless of the time limit.
 
+Version History
+---------------
+
+- v0: initial version of the environment
+
 Parameters
 ----------
 
@@ -70,13 +75,13 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import logger
 import mujoco
-from gymnasium_planar_robotics.envs.basic_env import BasicPlanarRoboticsEnv
+from gymnasium_planar_robotics import BasicPlanarRoboticsSingleAgentEnv
 from gymnasium_planar_robotics.utils import mujoco_utils
 from collections import OrderedDict
-from gymnasium_planar_robotics.utils.rendering import Matplotlib2DViewer
+from gymnasium_planar_robotics import Matplotlib2DViewer
 
 
-class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
+class BenchmarkPlanningEnv(BasicPlanarRoboticsSingleAgentEnv):
     """A simple planning environment.
 
     :param layout_tiles: a numpy array of shape (num_tiles_x, num_tiles_y) indicating where to add a tile (use 1 to add a tile
@@ -139,6 +144,8 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
         output.
     :param threshold_pos: the position threshold used to determine whether a mover has reached its goal position, defaults
         to 0.1 [m]
+    :param use_mj_passive_viewer: whether the MuJoCo passive_viewer should be used, defaults to False. If set to False, the Gymnasium
+        MuJoCo WindowViewer with custom overlays is used.
     """
 
     def __init__(
@@ -160,6 +167,7 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
         j_max: float = 100.0,
         learn_jerk: bool = False,
         threshold_pos: float = 0.1,
+        use_mj_passive_viewer: bool = False,
     ) -> None:
         self.learn_jerk = learn_jerk
 
@@ -175,6 +183,7 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsEnv):
             num_cycles=num_cycles,
             collision_params=collision_params,
             custom_model_xml_strings=None,
+            use_mj_passive_viewer=use_mj_passive_viewer,
         )
 
         # maximum velocity, acceleration and jerk

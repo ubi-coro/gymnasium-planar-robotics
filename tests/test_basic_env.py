@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from gymnasium_planar_robotics.envs.basic_env import BasicPlanarRoboticsEnv
+from gymnasium_planar_robotics.envs.basic_envs import BasicPlanarRoboticsEnv
 
 
 @pytest.mark.parametrize(
@@ -1617,9 +1617,7 @@ from gymnasium_planar_robotics.envs.basic_env import BasicPlanarRoboticsEnv
         ),
     ],
 )
-def test_mover_position_is_valid_check(monkeypatch, layout_tiles, qpos, collision_params, add_safety_offset, expected_result, c_size):
-    monkeypatch.setattr(BasicPlanarRoboticsEnv, '__abstractmethods__', set())
-
+def test_mover_position_is_valid_check(layout_tiles, qpos, collision_params, add_safety_offset, expected_result, c_size):
     env = BasicPlanarRoboticsEnv(layout_tiles=layout_tiles, num_movers=1, collision_params=collision_params)
 
     num_qpos = qpos.shape[0]

@@ -1,10 +1,10 @@
-"""The ``BenchmarkPushingEnv`` is a very simple pushing environment that should be understood as an example of how object manipulation
+"""The ``BenchmarkPushingEnv`` is a simple pushing environment that should be understood as an example of how object manipulation
 with planar motor systems can look like. This environment is therefore intended for parameter or algorithm tests.
 
 The aim is to push an object with the mover to the desired goal position without collisions between a mover and a wall by
 specifying either the jerk or the acceleration of the mover. The starting positions of the mover and object as well as the
 object goal position are chosen randomly at the start of a new episode. This environment contains only one object and one
-mover. In addition, the tile layout is set to a 3x3 layout. In this environment, positions, velocities, accelerations and jerks have
+mover. In addition, the tile layout is set to a 3x3 layout. In this environment, positions, velocities, accelerations, and jerks have
 the units m, m/s, m/s² and m/s³, respectively.
 
 Observation Space
@@ -48,7 +48,7 @@ represents the accelerations in x and y direction of the base frame (unit: m/s²
 Immediate Rewards
 -----------------
 
-The agent receives a reward of 0, if the object has reached its goal without a collision between the mover and a wall.
+The agent receives a reward of 0 if the object has reached its goal without a collision between the mover and a wall.
 For each timestep in which the object has not reached its goal and in which there is no collision between the mover and a wall, the
 environment emits a small negative reward of -1.
 In the case of a collision between the mover and a wall, the agent receives a large negative reward of -50.
@@ -72,6 +72,11 @@ random. It is ensured that the new start position of the mover is collision-free
 object. In addition, the object's start position is chosen such that the mover fits between the wall and the object. This is important
 to ensure that the object can be pushed in all directions.
 
+Version History
+---------------
+
+- v0: initial version of the environment
+
 Parameters
 ----------
 
@@ -81,13 +86,13 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import logger
 import mujoco
-from gymnasium_planar_robotics.envs.basic_env import BasicPlanarRoboticsEnv
+from gymnasium_planar_robotics import BasicPlanarRoboticsSingleAgentEnv
 from gymnasium_planar_robotics.utils import mujoco_utils
-from gymnasium_planar_robotics.utils.impedance_control import MoverImpedanceController
+from gymnasium_planar_robotics import MoverImpedanceController
 from collections import OrderedDict
 
 
-class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
+class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
     """A simple object pushing environment.
 
     :param mover_params: a dictionary that can be used to specify the mass and size of each mover using the keys 'mass' or 'size',
@@ -136,6 +141,8 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
         output.
     :param threshold_pos: the position threshold used to determine whether a mover has reached its goal position, defaults
         to 0.05 [m]
+    :param use_mj_passive_viewer: whether the MuJoCo passive_viewer should be used, defaults to False. If set to False, the Gymnasium
+        MuJoCo WindowViewer with custom overlays is used.
     """
 
     def __init__(
@@ -152,6 +159,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
         j_max: float = 100.0,
         learn_jerk: bool = False,
         threshold_pos: float = 0.05,
+        use_mj_passive_viewer: bool = False,
     ) -> None:
         self.learn_jerk = learn_jerk
 
@@ -181,6 +189,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
             num_cycles=num_cycles,
             collision_params=collision_params,
             custom_model_xml_strings=None,
+            use_mj_passive_viewer=use_mj_passive_viewer,
         )
 
         # maximum velocity, acceleration and jerk
@@ -311,9 +320,9 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsEnv):
             + '\n\t\t\t<joint name="object_joint" type="free" damping="0.01"/>'
             + '\n\t\t\t<geom name="object_geom" '
             + f'type="box" size="{self.object_length_xy} {self.object_length_xy} {self.object_height}" '
-            + f'mass="{self.object_mass}" material="green"/>'
+            + f'mass="{self.object_mass}" material="red"/>'
             + '\n\t\t</body>'
-            + '\n\t\t<site name="object_goal_site" type="sphere" material="green" size="0.02" '
+            + '\n\t\t<site name="object_goal_site" type="sphere" material="red" size="0.02" '
             + f'pos="{self.object_xy_goal_pos[0]} {self.object_xy_goal_pos[1]} {self.object_height}"/>'
         )
 

@@ -34,3 +34,4 @@ velo
 vopt
 worldbody
 xml
+Zsh

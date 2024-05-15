@@ -1,7 +1,7 @@
 MuJoCo Utils
 ============
 
-Gymnasium-Planar-Robotics offers various MuJoCo utility functions that can be helpful for developing your own custom 
+Gymnasium-Planar-Robotics offers various MuJoCo utility functions that can help to develop your custom 
 MuJoCo environments.
 
 .. autofunction:: gymnasium_planar_robotics.utils.mujoco_utils.set_actuator_ctrl

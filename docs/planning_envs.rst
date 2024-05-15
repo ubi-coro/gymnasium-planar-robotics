@@ -1,9 +1,14 @@
 Planning Environments
 =====================
 
+GPR contains environments for motion planning with multiple movers.
+
+.. note:: 
+   New environments will be added in the future.
+
+A detailed documentation of all motion planning environments can be found in the following subsections:
+
 .. toctree::
-   :hidden:
    :maxdepth: 1
-   :caption: Planning Environments
 
    planning_envs/benchmark_planning_env

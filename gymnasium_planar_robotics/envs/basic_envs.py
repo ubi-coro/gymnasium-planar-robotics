@@ -1,17 +1,18 @@
 from abc import ABC, abstractmethod
 import gymnasium as gym
 from gymnasium import logger
+from pettingzoo import ParallelEnv
 import numpy as np
 import mujoco
 import mujoco.viewer
 from gymnasium_planar_robotics.utils import geometry_2D_utils, mujoco_utils, rendering
 
 
-class BasicPlanarRoboticsEnv(ABC, gym.Env):
-    """A base class for reinforcement learning environments in the field of planar robotics that is based on MuJoCo and following the
-    Gymnasium API. Note that MuJoCo does not specify basic physical units (for a more detailed explanation, see
-    https://mujoco.readthedocs.io/en/stable/overview.html#units-are-unspecified). Thus, this environment can be used with user
-    specific units. However, note that the units m and kg are used for the default parameters.
+class BasicPlanarRoboticsEnv:
+    """A base class for reinforcement learning environments in the field of planar robotics that is based on MuJoCo.
+    Note that MuJoCo does not specify basic physical units (for a more detailed explanation, see
+    https://mujoco.readthedocs.io/en/stable/overview.html#units-are-unspecified). Thus, this environment can be used with user-specific
+    units. However, note that the units m and kg are used for the default parameters.
 
     :param layout_tiles: a numpy array of shape (num_tiles_x, num_tiles_y) indicating where to add a tile (use 1 to add a tile
         and 0 to leave cell empty). The x-axis and y-axis correspond to the axes of the numpy array, so the origin of the base
@@ -41,15 +42,10 @@ class BasicPlanarRoboticsEnv(ABC, gym.Env):
         value, meaning the same standard deviation is used for all three values.
     :param render_mode: the mode that is used to render the frames ('human', 'rgb_array' or None), defaults to 'human'. If set to
         None, no viewer is initialized and used, i.e. no rendering. This can be useful to speed up training.
-    :param render_every_cycle: whether to call ``render()`` after each integrator step in the ``step()`` method, defaults to False.
-        Rendering every cycle leads to a smoother visualization of the scene, but can also be computationally expensive. Thus, this
-        parameter provides the possibility to speed up training and evaluation. Regardless of this parameter, the scene is always
-        rendered after 'num_cycles' have been executed if 'render_mode != None'.
     :param default_cam_config: dictionary with attribute values of the viewer's default camera,
         https://mujoco.readthedocs.io/en/latest/XMLreference.html?highlight=camera#visual-global, defaults to None
     :param width_no_camera_specified: if render_mode != 'human' and no width is specified, this value is used, defaults to 1240
     :param height_no_camera_specified: if render_mode != 'human' and no height is specified, this value is used, defaults to 1080
-    :param num_cycles: the number of control cycles for which to apply the same action, defaults to 40
     :param collision_params: a dictionary that can be used to specify the following collision parameters, defaults to None:
 
         - collision shape (key: 'shape'): can be 'box' or 'circle', defaults to 'circle'
@@ -97,6 +93,8 @@ class BasicPlanarRoboticsEnv(ABC, gym.Env):
 
         If set to None, only the basic xml string is generated, containing tiles, movers (excluding actuators),
         and possibly goals; defaults to None. This dictionary can be further modified using the ``_custom_xml_string_callback()``.
+    :param use_mj_passive_viewer: whether the MuJoCo passive_viewer should be used, defaults to False. If set to False, the Gymnasium
+        MuJoCo WindowViewer with custom overlays is used.
     """
 
     metadata = {'render_modes': ['human', 'rgb_array']}
@@ -111,15 +109,14 @@ class BasicPlanarRoboticsEnv(ABC, gym.Env):
         table_height: float = 0.4,
         std_noise: np.ndarray | float = 1e-5,
         render_mode: str | None = 'human',
-        render_every_cycle: bool = False,
         default_cam_config: dict[str, any] | None = None,
         width_no_camera_specified: int = 1240,
         height_no_camera_specified: int = 1080,
-        num_cycles: int = 40,
         collision_params: dict[str, any] | None = None,
         initial_mover_start_xy_pos: np.ndarray | None = None,
         initial_mover_goal_xy_pos: np.ndarray | None = None,
         custom_model_xml_strings: dict[str, str] | None = None,
+        use_mj_passive_viewer: bool = False,
     ) -> None:
         # rng
         self.rng_noise = np.random.default_rng()
@@ -198,8 +195,6 @@ class BasicPlanarRoboticsEnv(ABC, gym.Env):
         self.data = mujoco.MjData(self.model)
         mujoco.mj_step(self.model, self.data, nstep=1)
 
-        # number of control cycles for which to apply the same action
-        self.num_cycles = num_cycles
         # cycle time
         self.cycle_time = self.model.opt.timestep
 
@@ -212,7 +207,6 @@ class BasicPlanarRoboticsEnv(ABC, gym.Env):
         # rendering
         assert render_mode is None or render_mode in self.metadata['render_modes']
         self.render_mode = render_mode
-        self.render_every_cycle = render_every_cycle
         if default_cam_config is None:
             default_cam_config = {
                 'distance': 2.0,
@@ -228,6 +222,7 @@ class BasicPlanarRoboticsEnv(ABC, gym.Env):
                 default_cam_config=default_cam_config,
                 width_no_camera_specified=width_no_camera_specified,
                 height_no_camera_specified=height_no_camera_specified,
+                use_mj_passive_viewer=use_mj_passive_viewer,
             )
 
     def _custom_xml_string_callback(self, custom_model_xml_strings: dict[str, str] | None = None) -> dict[str, str] | None:
@@ -247,156 +242,6 @@ class BasicPlanarRoboticsEnv(ABC, gym.Env):
     # RL                                              #
     ###################################################
 
-    def reset(self, seed: int | None = None, options: dict[str, any] | None = None) -> tuple[dict[str, np.ndarray], dict[str, any]]:
-        """Reset the environment returning an initial observation and auxiliary information. More detailed information about the
-        parameters and return values can be found in the Gymnasium documentation:
-        https://gymnasium.farama.org/api/env/#gymnasium.Env.reset.
-
-        This method performs the following steps:
-
-        - reset RNG, if desired
-        - call ``_reset_callback(option)`` to give the user the opportunity to add more functionality
-        - call ``mj_forward()``
-        - check whether there are mover or wall collisions
-        - call ``render()``
-        - get initial observation and info dictionary
-
-        :param seed: if set to None, the RNG is not reset; if int, sets the desired seed; defaults to None
-        :param options: a dictionary that can be used to specify additional reset options, e.g. object parameters; defaults to None
-        :return: initial observation and auxiliary information contained in the 'info' dictionary
-        """
-        # reset RNG of the environment if seed is not None
-        super().reset(seed=seed)
-        if seed is not None:
-            self.rng_noise = np.random.default_rng(seed=seed)
-
-        # custom callback to add more functionality
-        self._reset_callback(options)
-
-        # update sim
-        mujoco.mj_forward(self.model, self.data)
-        # check mover and wall collision
-        wall_collision = self.check_wall_collision(
-            mover_names=self.mover_names, c_size=self.c_size, add_safety_offset=True, mover_qpos=None, add_qpos_noise=True
-        ).any()
-        # check mover collision
-        mover_collision = self.check_mover_collision(
-            mover_names=self.mover_names, c_size=self.c_size, add_safety_offset=False, mover_qpos=None, add_qpos_noise=True
-        ).any()
-
-        # rendering
-        self.render()
-
-        # get new observation and info
-        observation = self._get_obs()
-        if isinstance(observation, dict) and 'achieved_goal' in observation.keys() and 'desired_goal' in observation.keys():
-            info = self._get_info(
-                mover_collision=mover_collision,
-                wall_collision=wall_collision,
-                achieved_goal=observation['achieved_goal'],
-                desired_goal=observation['desired_goal'],
-            )
-        else:
-            info = self._get_info(mover_collision=mover_collision, wall_collision=wall_collision)
-
-        return observation, info
-
-    def step(self, action: int | np.ndarray) -> tuple[dict[str, np.ndarray], float, bool, bool, dict[str, any]]:
-        """Execute one step of the environment's dynamics applying the given action.
-        Note that the environment executes as many MuJoCo simulation steps as the number of cycles specified for this environment
-        (``num_cycles``). The duration of one cycle is determined by the cycle time, which must be specified in the MuJoCo xml
-        string using the ``option/timestep`` parameter. The same action is applied for all cycles.
-
-        This method performs the following steps:
-
-        - check whether the dimension of the action matches the dimension of the action space
-        - if the action space does not contain the specified action, the action is clipped to the interval edges of
-          the action space
-        - call ``_step_callback(action)`` to give the user the opportunity to add more functionality
-        - execute MuJoCo simulation steps (``mj_step()``). After each simulation step, it is checked whether there are mover or wall
-          collisions. In case of a collision, mover_collision or wall_collision will be True and no further simulation
-          steps are performed, as a real system would typically stop as well due to position lag errors.
-          In addition, ``render()`` can be called after each simulation step to provide a smooth visualization of the movement
-          (set ``render_every_cycle=True``).
-          The callback ``_mujoco_step_callback(action)`` can be used to add functionality BEFORE the next simulation step is executed.
-          This can be useful, for example, to ensure velocity or acceleration limits within each cycle.
-        - call ``render()``
-        - get return values
-
-        More detailed information about the parameters and return values can be found in the Gymnasium documentation:
-        https://gymnasium.farama.org/api/env/#gymnasium.Env.step.
-
-        :param action: the action to apply
-        :return:
-                - the next observation
-                - the immediate reward for taking the action
-                - whether a terminal state is reached
-                - whether the truncation condition is satisfied
-                - auxiliary information contained in the 'info' dictionary
-        """
-        # make sure that shape is correct and action is within action space
-        if not isinstance(action, int):
-            assert action.shape == self.action_space.shape, 'action dim != action_space dim'
-            if not self.action_space.contains(action):
-                logger.warn(f'Action {action} not in action space. Will clip invalid values to interval edges.')
-                action = np.clip(action, self.action_space.low, self.action_space.high)
-
-        # custom callback to add more functionality
-        self._step_callback(action)
-
-        # integration and collision check
-        for _ in range(0, self.num_cycles):
-            self._mujoco_step_callback(action)
-            # integration
-            mujoco.mj_step(self.model, self.data, nstep=1)
-            # render every cycle for a smooth visualization of the movement
-            if self.render_every_cycle:
-                self.render()
-            # check wall and mover collision every cycle to ensure that the collisions are detected and all intermediate
-            # mover positions are valid and without collisions
-            wall_collision = self.check_wall_collision(
-                mover_names=self.mover_names,
-                c_size=self.c_size,
-                add_safety_offset=False,
-                mover_qpos=None,
-                add_qpos_noise=True,  # would also occur in a real system
-            ).any()
-            mover_collision = self.check_mover_collision(
-                mover_names=self.mover_names,
-                c_size=self.c_size,
-                add_safety_offset=False,
-                mover_qpos=None,
-                add_qpos_noise=True,  # would also occur in a real system
-            )
-            if mover_collision or wall_collision:
-                break
-
-        self.render()
-
-        # get next observation
-        observation = self._get_obs()
-        if isinstance(observation, dict) and 'achieved_goal' in observation.keys() and 'desired_goal' in observation.keys():
-            # goal-conditioned RL
-            info = self._get_info(mover_collision, wall_collision, observation['achieved_goal'], observation['desired_goal'])
-            reward = self.compute_reward(observation['achieved_goal'], observation['desired_goal'], info)
-            terminated = self.compute_terminated(observation['achieved_goal'], observation['desired_goal'], info)
-            truncated = self.compute_truncated(observation['achieved_goal'], observation['desired_goal'], info)
-        else:
-            info = self._get_info(mover_collision, wall_collision)
-            reward = self.compute_reward(info)
-            terminated = self.compute_terminated(info)
-            truncated = self.compute_truncated(info)
-        # check reward shape
-        if isinstance(reward, np.ndarray) and reward.shape[0] > 1:
-            logger.warn(
-                f"Unexpected shape of reward returned by 'env.compute_reward()'. Current shape is: {reward.shape}, \
-                  expected shape: (1,)"
-            )
-        elif isinstance(reward, np.ndarray) and reward.shape[0] == 1:
-            reward = reward[0]
-
-        return observation, reward, terminated, truncated, info
-
     def render(self) -> np.ndarray | None:
         """Compute frames depending on the initially specified ``render_mode``. Before the corresponding viewer is updated,
         the ``_render_callback()`` is called to give the opportunity to add more functionality.
@@ -409,116 +254,9 @@ class BasicPlanarRoboticsEnv(ABC, gym.Env):
         else:
             return None
 
-    def _reset_callback(self, options: dict[str, any] | None = None) -> None:
-        """A callback that should be used to add further functionality to the ``reset()`` method (see documentation of the ``reset()``
-        method for more information about when the callback is called).
-
-        :param options: a dictionary that can be used to specify additional reset options, e.g. object parameters; defaults to None
-        """
-        pass
-
-    def _step_callback(self, action: int | np.ndarray) -> None:
-        """A callback that should be used to add further functionality to the ``step()`` method (see documentation of the ``step()``
-        method for more information about when the callback is called).
-
-        :param action: the action to apply
-        """
-        pass
-
-    def _mujoco_step_callback(self, action: int | np.ndarray) -> None:
-        """A callback that should be used to add further functionality to the ``step()`` method (see documentation of the ``step()``
-        method for more information about when the callback is called).
-
-        :param action: the action to apply
-        """
-        pass
-
     def _render_callback(self) -> None:
         """A callback that should be used to add further functionality to the ``render()`` method (see documentation of the
         ``render()`` method for more information about when the callback is called).
-        """
-        pass
-
-    @abstractmethod
-    def compute_terminated(
-        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, any] | None = None
-    ) -> np.ndarray | bool:
-        """Check whether a terminal state is reached. This method can be used for both goal-conditioned RL and standard RL.
-        Since Hindsight Experience Replay (HER) is commonly used in goal-conditioned RL, this method receives
-        the 'achieved_goal' and 'desired_goal' corresponding to the requirements of the HER implementation of stable-baselines3
-        (for more information, see https://stable-baselines3.readthedocs.io/en/master/modules/her.html).
-
-        :param achieved_goal: a numpy array of shape (batch_size, length achieved_goal) or (length achieved_goal,) containing the
-            goals already achieved (goal-conditioned RL); defaults to None (standard RL)
-        :param desired_goal: a numpy array of shape (batch_size, length desired_goal) or (length desired_goal,) containing the
-            desired goals (goal-conditioned RL); defaults to None (standard RL)
-        :param info: a dictionary containing auxiliary information, defaults to None
-        :return: a single bool value or a numpy array of shape (batch_size,) containing Boolean values, where True indicates that
-            a terminal state has been reached
-        """
-        pass
-
-    @abstractmethod
-    def compute_truncated(
-        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, any] | None = None
-    ) -> np.ndarray | bool:
-        """Check whether the truncation condition is satisfied. This method can be used for both goal-conditioned RL and standard RL.
-        Since Hindsight Experience Replay (HER) is commonly used in goal-conditioned RL, this method receives
-        the 'achieved_goal' and 'desired_goal' corresponding to the requirements of the HER implementation of stable-baselines3
-        (for more information, see https://stable-baselines3.readthedocs.io/en/master/modules/her.html).
-
-        :param achieved_goal: a numpy array of shape (batch_size, length achieved_goal) or (length achieved_goal,) containing the
-            goals already achieved (goal-conditioned RL); defaults to None (standard RL)
-        :param desired_goal: a numpy array of shape (batch_size, length desired_goal) or (length desired_goal,) containing the
-            desired goals (goal-conditioned RL); defaults to None (standard RL)
-        :param info: a dictionary containing auxiliary information, defaults to None
-        :return: a single bool value or a numpy array of shape (batch_size,) containing Boolean values, where True indicates that
-            a the truncation condition is satisfied
-        """
-        pass
-
-    @abstractmethod
-    def compute_reward(
-        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, any] | None = None
-    ) -> np.ndarray | float:
-        """Compute the immediate reward. This method is required by the stable-baselines3 implementation of Hindsight Experience
-        Replay (HER) (for more information, see https://stable-baselines3.readthedocs.io/en/master/modules/her.html).
-
-        :param achieved_goal: a numpy array of shape (batch_size, length achieved_goal) or (length achieved_goal,) containing the
-            goals already achieved (goal-conditioned RL); defaults to None (standard RL)
-        :param desired_goal: a numpy array of shape (batch_size, length desired_goal) or (length desired_goal,) containing the
-            desired goals (goal-conditioned RL); defaults to None (standard RL)
-        :param info: a dictionary containing auxiliary information, defaults to None
-        :return: a single float value or a numpy array of shape (batch_size,) containing the immediate rewards
-        """
-        pass
-
-    @abstractmethod
-    def _get_obs(self) -> dict[str, np.ndarray] | np.ndarray:
-        """Return an observation based on the current state of the environment.
-
-        :return: a numpy array or a dictionary (dictionary observation space - required by HER implementation of stable-baselines3)
-        """
-        pass
-
-    @abstractmethod
-    def _get_info(
-        self,
-        mover_collision: bool,
-        wall_collision: bool,
-        achieved_goal: np.ndarray | None = None,
-        desired_goal: np.ndarray | None = None,
-    ) -> dict[str, any]:
-        """Return a dictionary that contains auxiliary information that may depend on the 'achieved_goal' and 'desired_goal' in
-        goal-conditioned RL.
-
-        :param mover_collision: whether there is a collision between two movers
-        :param wall:collision: whether there is a collision between a mover and a wall
-        :param achieved_goal: a numpy array containing the goal which already achieved (goal-conditioned RL) - the shape
-            depends on the shape of the observation space; defaults to None
-        :param desired_goal: a numpy array containing the desired goal (goal-conditioned RL) - the shape
-            depends on the shape of the observation space; defaults to None
-        :return: a dictionary with auxiliary information
         """
         pass
 
@@ -1088,7 +826,7 @@ class BasicPlanarRoboticsEnv(ABC, gym.Env):
                     )
 
         # movers and correspondig goals and actuators
-        material_str_list = ['green', 'yellow', 'orange', 'blue', 'red', 'light_blue']
+        material_str_list = ['green', 'blue', 'orange', 'red', 'yellow', 'light_blue']
         mover_xml_str = ''
         num_goal_movers = mover_goal_xy_pos.shape[0] if mover_goal_xy_pos is not None else 0
 
@@ -1176,13 +914,14 @@ class BasicPlanarRoboticsEnv(ABC, gym.Env):
             + '\n\t\t<material name="off_white" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.7 0.7 0.7 1" />'
             + '\n\t\t<material name="gray" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.5 0.5 0.5 1"/>'
             + '\n\t\t<material name="black" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.25 0.25 0.25 1" />'
-            + '\n\t\t<material name="blue" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0 0 1 1" />'
-            + '\n\t\t<material name="green" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0 1 0 1" />'
-            + '\n\t\t<material name="red" reflectance="0.01" shininess="0.01" specular="0.1" rgba="1 0 0 1" />'
+            + '\n\t\t<material name="green" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.2852 0.5078 0.051 1" />'
+            + '\n\t\t<material name="red" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.94 0.191 0.191 1" />'
             + '\n\t\t<material name="red_transparent" reflectance="0.01" shininess="0.01" specular="0.1" rgba="1 0 0 0.15" />'
-            + '\n\t\t<material name="yellow" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.98 0.94 0 1" />'
+            + '\n\t\t<material name="yellow" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.98 0.94 0.052 1" />'
             + '\n\t\t<material name="orange" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.98 0.39 0 1" />'
+            + '\n\t\t<material name="dark_blue" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0 0 1 1" />'
             + '\n\t\t<material name="light_blue" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.492 0.641 0.98 1" />'
+            + '\n\t\t<material name="blue" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0. 0.543 0.649 1" />'
             + '\n\t\t<material name="floor_mat" reflectance="0.01" shininess="0.01" specular="0.1" texture="texplane" '
             + 'texuniform="true" />'
             + '\n\t\t<texture name="texplane" builtin="flat" height="256" width="256" rgb1=".7 .7 .7" rgb2=".7 .7 .7" />'
@@ -1512,3 +1251,402 @@ class BasicPlanarRoboticsEnv(ABC, gym.Env):
                     'Order of MuJoCo model mover goal site names does not match the order of MuJoCo model mover names.'
                 )
         # fmt: on
+
+
+class BasicPlanarRoboticsMultiAgentEnv(BasicPlanarRoboticsEnv, ParallelEnv):
+    """A base class for multi-agent reinforcement learning environments in the field of planar robotics that follow the PettingZoo
+    API. A more detailed explanation of all parameters can be found in the documentation of the ``BasicPlanarRoboticsEnv``.
+
+    :param layout_tiles: the tile layout
+    :param num_movers: the number of movers
+    :param tile_params: tile parameters such as the size and mass, defaults to None
+    :param mover_params: mover parameters such as the size and mass, defaults to None
+    :param initial_mover_zpos: the initial distance between the bottom of the mover and the top of a tile, defaults to 0.005 [m]
+    :param table_height: the height of a table on which the tiles are placed, defaults to 0.4 [m]
+    :param std_noise: the standard deviation of a Gaussian with zero mean used to add noise, defaults to 1e-5
+    :param render_mode: the mode that is used to render the frames ('human', 'rgb_array' or None), defaults to 'human'
+    :param default_cam_config: dictionary with attribute values of the viewer's default camera,
+        https://mujoco.readthedocs.io/en/latest/XMLreference.html?highlight=camera#visual-global, defaults to None
+    :param width_no_camera_specified: if render_mode != 'human' and no width is specified, this value is used, defaults to 1240
+    :param height_no_camera_specified: if render_mode != 'human' and no height is specified, this value is used, defaults to 1080
+    :param collision_params: a dictionary that can be used to specify collision parameters, defaults to None
+    :param initial_mover_start_xy_pos: the initial (x,y) starting positions of the movers, defaults to None
+    :param initial_mover_goal_xy_pos: the initial (x,y) goal positions of the movers, defaults to None
+    :param custom_model_xml_strings: a dictionary containing additional xml strings to provide the ability to add actuators, sensors,
+        objects, robots, etc. to the model, defaults to None
+    :param use_mj_passive_viewer: whether the MuJoCo passive_viewer should be used, defaults to False. If set to False, the Gymnasium
+        MuJoCo WindowViewer with custom overlays is used.
+    """
+
+    def __init__(
+        self,
+        layout_tiles: np.ndarray,
+        num_movers: int,
+        tile_params: dict[str, any] | None = None,
+        mover_params: dict[str, any] | None = None,
+        initial_mover_zpos: float = 0.005,
+        table_height: float = 0.4,
+        std_noise: np.ndarray | float = 1e-5,
+        render_mode: str | None = 'human',
+        default_cam_config: dict[str, any] | None = None,
+        width_no_camera_specified: int = 1240,
+        height_no_camera_specified: int = 1080,
+        collision_params: dict[str, any] | None = None,
+        initial_mover_start_xy_pos: np.ndarray | None = None,
+        initial_mover_goal_xy_pos: np.ndarray | None = None,
+        custom_model_xml_strings: dict[str, str] | None = None,
+        use_mj_passive_viewer: bool = False,
+    ) -> None:
+        super(BasicPlanarRoboticsEnv, self).__init__(
+            layout_tiles=layout_tiles,
+            num_movers=num_movers,
+            tile_params=tile_params,
+            mover_params=mover_params,
+            initial_mover_zpos=initial_mover_zpos,
+            table_height=table_height,
+            std_noise=std_noise,
+            render_mode=render_mode,
+            default_cam_config=default_cam_config,
+            width_no_camera_specified=width_no_camera_specified,
+            height_no_camera_specified=height_no_camera_specified,
+            collision_params=collision_params,
+            initial_mover_start_xy_pos=initial_mover_start_xy_pos,
+            initial_mover_goal_xy_pos=initial_mover_goal_xy_pos,
+            custom_model_xml_strings=custom_model_xml_strings,
+            use_mj_passive_viewer=use_mj_passive_viewer,
+        )
+
+        self.agents = self.mover_names
+        self.possible_agents = self.mover_names
+
+
+class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
+    """A base class for single-agent reinforcement learning environments in the field of planar robotics that follow the Gymnasium
+    API. A more detailed explanation of all parameters can be found in the documentation of the ``BasicPlanarRoboticsEnv``.
+
+    :param layout_tiles: the tile layout
+    :param num_movers: the number of movers
+    :param tile_params: tile parameters such as the size and mass, defaults to None
+    :param mover_params: mover parameters such as the size and mass, defaults to None
+    :param initial_mover_zpos: the initial distance between the bottom of the mover and the top of a tile, defaults to 0.005 [m]
+    :param table_height: the height of a table on which the tiles are placed, defaults to 0.4 [m]
+    :param std_noise: the standard deviation of a Gaussian with zero mean used to add noise, defaults to 1e-5
+    :param render_mode: the mode that is used to render the frames ('human', 'rgb_array' or None), defaults to 'human'
+    :param render_every_cycle: whether to call ``render()`` after each integrator step in the ``step()`` method, defaults to False.
+        Rendering every cycle leads to a smoother visualization of the scene, but can also be computationally expensive. Thus, this
+        parameter provides the possibility to speed up training and evaluation. Regardless of this parameter, the scene is always
+        rendered after 'num_cycles' have been executed if 'render_mode != None'.
+    :param default_cam_config: dictionary with attribute values of the viewer's default camera,
+        https://mujoco.readthedocs.io/en/latest/XMLreference.html?highlight=camera#visual-global, defaults to None
+    :param width_no_camera_specified: if render_mode != 'human' and no width is specified, this value is used, defaults to 1240
+    :param height_no_camera_specified: if render_mode != 'human' and no height is specified, this value is used, defaults to 1080
+    :param num_cycles: the number of control cycles for which to apply the same action, defaults to 40
+    :param collision_params: a dictionary that can be used to specify collision parameters, defaults to None
+    :param initial_mover_start_xy_pos: the initial (x,y) starting positions of the movers, defaults to None
+    :param initial_mover_goal_xy_pos: the initial (x,y) goal positions of the movers, defaults to None
+    :param custom_model_xml_strings: a dictionary containing additional xml strings to provide the ability to add actuators, sensors,
+        objects, robots, etc. to the model, defaults to None
+    :param use_mj_passive_viewer: whether the MuJoCo passive_viewer should be used, defaults to False. If set to False, the Gymnasium
+        MuJoCo WindowViewer with custom overlays is used.
+    """
+
+    def __init__(
+        self,
+        layout_tiles: np.ndarray,
+        num_movers: int,
+        tile_params: dict[str, any] | None = None,
+        mover_params: dict[str, any] | None = None,
+        initial_mover_zpos: float = 0.005,
+        table_height: float = 0.4,
+        std_noise: np.ndarray | float = 1e-5,
+        render_mode: str | None = 'human',
+        render_every_cycle: bool = False,
+        default_cam_config: dict[str, any] | None = None,
+        width_no_camera_specified: int = 1240,
+        height_no_camera_specified: int = 1080,
+        num_cycles: int = 40,
+        collision_params: dict[str, any] | None = None,
+        initial_mover_start_xy_pos: np.ndarray | None = None,
+        initial_mover_goal_xy_pos: np.ndarray | None = None,
+        custom_model_xml_strings: dict[str, str] | None = None,
+        use_mj_passive_viewer: bool = False,
+    ) -> None:
+        super().__init__(
+            layout_tiles=layout_tiles,
+            num_movers=num_movers,
+            tile_params=tile_params,
+            mover_params=mover_params,
+            initial_mover_zpos=initial_mover_zpos,
+            table_height=table_height,
+            std_noise=std_noise,
+            render_mode=render_mode,
+            default_cam_config=default_cam_config,
+            width_no_camera_specified=width_no_camera_specified,
+            height_no_camera_specified=height_no_camera_specified,
+            collision_params=collision_params,
+            initial_mover_start_xy_pos=initial_mover_start_xy_pos,
+            initial_mover_goal_xy_pos=initial_mover_goal_xy_pos,
+            custom_model_xml_strings=custom_model_xml_strings,
+            use_mj_passive_viewer=use_mj_passive_viewer,
+        )
+
+        self.render_every_cycle = render_every_cycle
+        # number of control cycles for which to apply the same action
+        self.num_cycles = num_cycles
+
+    def reset(self, seed: int | None = None, options: dict[str, any] | None = None) -> tuple[dict[str, np.ndarray], dict[str, any]]:
+        """Reset the environment returning an initial observation and auxiliary information. More detailed information about the
+        parameters and return values can be found in the Gymnasium documentation:
+        https://gymnasium.farama.org/api/env/#gymnasium.Env.reset.
+
+        This method performs the following steps:
+
+        - reset RNG, if desired
+        - call ``_reset_callback(option)`` to give the user the opportunity to add more functionality
+        - call ``mj_forward()``
+        - check whether there are mover or wall collisions
+        - call ``render()``
+        - get initial observation and info dictionary
+
+        :param seed: if set to None, the RNG is not reset; if int, sets the desired seed; defaults to None
+        :param options: a dictionary that can be used to specify additional reset options, e.g. object parameters; defaults to None
+        :return: initial observation and auxiliary information contained in the 'info' dictionary
+        """
+        # reset RNG of the environment if seed is not None
+        super().reset(seed=seed)
+        if seed is not None:
+            self.rng_noise = np.random.default_rng(seed=seed)
+
+        # custom callback to add more functionality
+        self._reset_callback(options)
+
+        # update sim
+        mujoco.mj_forward(self.model, self.data)
+        # check mover and wall collision
+        wall_collision = self.check_wall_collision(
+            mover_names=self.mover_names, c_size=self.c_size, add_safety_offset=True, mover_qpos=None, add_qpos_noise=True
+        ).any()
+        # check mover collision
+        mover_collision = self.check_mover_collision(
+            mover_names=self.mover_names, c_size=self.c_size, add_safety_offset=False, mover_qpos=None, add_qpos_noise=True
+        ).any()
+
+        # rendering
+        self.render()
+
+        # get new observation and info
+        observation = self._get_obs()
+        if isinstance(observation, dict) and 'achieved_goal' in observation.keys() and 'desired_goal' in observation.keys():
+            info = self._get_info(
+                mover_collision=mover_collision,
+                wall_collision=wall_collision,
+                achieved_goal=observation['achieved_goal'],
+                desired_goal=observation['desired_goal'],
+            )
+        else:
+            info = self._get_info(mover_collision=mover_collision, wall_collision=wall_collision)
+
+        return observation, info
+
+    def step(self, action: int | np.ndarray) -> tuple[dict[str, np.ndarray], float, bool, bool, dict[str, any]]:
+        """Execute one step of the environment's dynamics applying the given action.
+        Note that the environment executes as many MuJoCo simulation steps as the number of cycles specified for this environment
+        (``num_cycles``). The duration of one cycle is determined by the cycle time, which must be specified in the MuJoCo xml
+        string using the ``option/timestep`` parameter. The same action is applied for all cycles.
+
+        This method performs the following steps:
+
+        - check whether the dimension of the action matches the dimension of the action space
+        - if the action space does not contain the specified action, the action is clipped to the interval edges of
+          the action space
+        - call ``_step_callback(action)`` to give the user the opportunity to add more functionality
+        - execute MuJoCo simulation steps (``mj_step()``). After each simulation step, it is checked whether there are mover or wall
+          collisions. In case of a collision, mover_collision or wall_collision will be True and no further simulation
+          steps are performed, as a real system would typically stop as well due to position lag errors.
+          In addition, ``render()`` can be called after each simulation step to provide a smooth visualization of the movement
+          (set ``render_every_cycle=True``).
+          The callback ``_mujoco_step_callback(action)`` can be used to add functionality BEFORE the next simulation step is executed.
+          This can be useful, for example, to ensure velocity or acceleration limits within each cycle.
+        - call ``render()``
+        - get return values
+
+        More detailed information about the parameters and return values can be found in the Gymnasium documentation:
+        https://gymnasium.farama.org/api/env/#gymnasium.Env.step.
+
+        :param action: the action to apply
+        :return:
+                - the next observation
+                - the immediate reward for taking the action
+                - whether a terminal state is reached
+                - whether the truncation condition is satisfied
+                - auxiliary information contained in the 'info' dictionary
+        """
+        # make sure that shape is correct and action is within action space
+        if not isinstance(action, int):
+            assert action.shape == self.action_space.shape, 'action dim != action_space dim'
+            if not self.action_space.contains(action):
+                logger.warn(f'Action {action} not in action space. Will clip invalid values to interval edges.')
+                action = np.clip(action, self.action_space.low, self.action_space.high)
+
+        # custom callback to add more functionality
+        self._step_callback(action)
+
+        # integration and collision check
+        for _ in range(0, self.num_cycles):
+            self._mujoco_step_callback(action)
+            # integration
+            mujoco.mj_step(self.model, self.data, nstep=1)
+            # render every cycle for a smooth visualization of the movement
+            if self.render_every_cycle:
+                self.render()
+            # check wall and mover collision every cycle to ensure that the collisions are detected and all intermediate
+            # mover positions are valid and without collisions
+            wall_collision = self.check_wall_collision(
+                mover_names=self.mover_names,
+                c_size=self.c_size,
+                add_safety_offset=False,
+                mover_qpos=None,
+                add_qpos_noise=True,  # would also occur in a real system
+            ).any()
+            mover_collision = self.check_mover_collision(
+                mover_names=self.mover_names,
+                c_size=self.c_size,
+                add_safety_offset=False,
+                mover_qpos=None,
+                add_qpos_noise=True,  # would also occur in a real system
+            )
+            if mover_collision or wall_collision:
+                break
+
+        self.render()
+
+        # get next observation
+        observation = self._get_obs()
+        if isinstance(observation, dict) and 'achieved_goal' in observation.keys() and 'desired_goal' in observation.keys():
+            # goal-conditioned RL
+            info = self._get_info(mover_collision, wall_collision, observation['achieved_goal'], observation['desired_goal'])
+            reward = self.compute_reward(observation['achieved_goal'], observation['desired_goal'], info)
+            terminated = self.compute_terminated(observation['achieved_goal'], observation['desired_goal'], info)
+            truncated = self.compute_truncated(observation['achieved_goal'], observation['desired_goal'], info)
+        else:
+            info = self._get_info(mover_collision, wall_collision)
+            reward = self.compute_reward(info)
+            terminated = self.compute_terminated(info)
+            truncated = self.compute_truncated(info)
+        # check reward shape
+        if isinstance(reward, np.ndarray) and reward.shape[0] > 1:
+            logger.warn(
+                f"Unexpected shape of reward returned by 'env.compute_reward()'. Current shape is: {reward.shape}, \
+                  expected shape: (1,)"
+            )
+        elif isinstance(reward, np.ndarray) and reward.shape[0] == 1:
+            reward = reward[0]
+
+        return observation, reward, terminated, truncated, info
+
+    def _reset_callback(self, options: dict[str, any] | None = None) -> None:
+        """A callback that should be used to add further functionality to the ``reset()`` method (see documentation of the ``reset()``
+        method for more information about when the callback is called).
+
+        :param options: a dictionary that can be used to specify additional reset options, e.g. object parameters; defaults to None
+        """
+        pass
+
+    def _step_callback(self, action: int | np.ndarray) -> None:
+        """A callback that should be used to add further functionality to the ``step()`` method (see documentation of the ``step()``
+        method for more information about when the callback is called).
+
+        :param action: the action to apply
+        """
+        pass
+
+    def _mujoco_step_callback(self, action: int | np.ndarray) -> None:
+        """A callback that should be used to add further functionality to the ``step()`` method (see documentation of the ``step()``
+        method for more information about when the callback is called).
+
+        :param action: the action to apply
+        """
+        pass
+
+    @abstractmethod
+    def compute_terminated(
+        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, any] | None = None
+    ) -> np.ndarray | bool:
+        """Check whether a terminal state is reached. This method can be used for both goal-conditioned RL and standard RL.
+        Since Hindsight Experience Replay (HER) is commonly used in goal-conditioned RL, this method receives
+        the 'achieved_goal' and 'desired_goal' corresponding to the requirements of the HER implementation of stable-baselines3
+        (for more information, see https://stable-baselines3.readthedocs.io/en/master/modules/her.html).
+
+        :param achieved_goal: a numpy array of shape (batch_size, length achieved_goal) or (length achieved_goal,) containing the
+            goals already achieved (goal-conditioned RL); defaults to None (standard RL)
+        :param desired_goal: a numpy array of shape (batch_size, length desired_goal) or (length desired_goal,) containing the
+            desired goals (goal-conditioned RL); defaults to None (standard RL)
+        :param info: a dictionary containing auxiliary information, defaults to None
+        :return: a single bool value or a numpy array of shape (batch_size,) containing Boolean values, where True indicates that
+            a terminal state has been reached
+        """
+        pass
+
+    @abstractmethod
+    def compute_truncated(
+        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, any] | None = None
+    ) -> np.ndarray | bool:
+        """Check whether the truncation condition is satisfied. This method can be used for both goal-conditioned RL and standard RL.
+        Since Hindsight Experience Replay (HER) is commonly used in goal-conditioned RL, this method receives
+        the 'achieved_goal' and 'desired_goal' corresponding to the requirements of the HER implementation of stable-baselines3
+        (for more information, see https://stable-baselines3.readthedocs.io/en/master/modules/her.html).
+
+        :param achieved_goal: a numpy array of shape (batch_size, length achieved_goal) or (length achieved_goal,) containing the
+            goals already achieved (goal-conditioned RL); defaults to None (standard RL)
+        :param desired_goal: a numpy array of shape (batch_size, length desired_goal) or (length desired_goal,) containing the
+            desired goals (goal-conditioned RL); defaults to None (standard RL)
+        :param info: a dictionary containing auxiliary information, defaults to None
+        :return: a single bool value or a numpy array of shape (batch_size,) containing Boolean values, where True indicates that
+            a the truncation condition is satisfied
+        """
+        pass
+
+    @abstractmethod
+    def compute_reward(
+        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, any] | None = None
+    ) -> np.ndarray | float:
+        """Compute the immediate reward. This method is required by the stable-baselines3 implementation of Hindsight Experience
+        Replay (HER) (for more information, see https://stable-baselines3.readthedocs.io/en/master/modules/her.html).
+
+        :param achieved_goal: a numpy array of shape (batch_size, length achieved_goal) or (length achieved_goal,) containing the
+            goals already achieved (goal-conditioned RL); defaults to None (standard RL)
+        :param desired_goal: a numpy array of shape (batch_size, length desired_goal) or (length desired_goal,) containing the
+            desired goals (goal-conditioned RL); defaults to None (standard RL)
+        :param info: a dictionary containing auxiliary information, defaults to None
+        :return: a single float value or a numpy array of shape (batch_size,) containing the immediate rewards
+        """
+        pass
+
+    @abstractmethod
+    def _get_obs(self) -> dict[str, np.ndarray] | np.ndarray:
+        """Return an observation based on the current state of the environment.
+
+        :return: a numpy array or a dictionary (dictionary observation space - required by HER implementation of stable-baselines3)
+        """
+        pass
+
+    @abstractmethod
+    def _get_info(
+        self,
+        mover_collision: bool,
+        wall_collision: bool,
+        achieved_goal: np.ndarray | None = None,
+        desired_goal: np.ndarray | None = None,
+    ) -> dict[str, any]:
+        """Return a dictionary that contains auxiliary information that may depend on the 'achieved_goal' and 'desired_goal' in
+        goal-conditioned RL.
+
+        :param mover_collision: whether there is a collision between two movers
+        :param wall:collision: whether there is a collision between a mover and a wall
+        :param achieved_goal: a numpy array containing the goal which already achieved (goal-conditioned RL) - the shape
+            depends on the shape of the observation space; defaults to None
+        :param desired_goal: a numpy array containing the desired goal (goal-conditioned RL) - the shape
+            depends on the shape of the observation space; defaults to None
+        :return: a dictionary with auxiliary information
+        """
+        pass

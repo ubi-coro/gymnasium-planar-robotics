@@ -113,7 +113,7 @@ class MujocoViewerCollection(MujocoRenderer):
         default_cam_config: dict | None = None,
         width_no_camera_specified: int = 1240,
         height_no_camera_specified: int = 1080,
-        use_mj_passive_viewer=False,
+        use_mj_passive_viewer: bool = False,
     ) -> None:
         self.width_no_camera_specified = width_no_camera_specified
         self.height_no_camera_specified = height_no_camera_specified

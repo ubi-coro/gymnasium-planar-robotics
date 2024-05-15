@@ -18,7 +18,7 @@ Gymnasium-Planar-Robotics offers various viewers for 2D and 3D rendering as well
 2D Matplotlib Viewer
 --------------------
 .. note::
-    The 2D viewer is intended for debugging and analyzing certain situations during trajectory planning situations. 
+    The 2D viewer is intended for debugging and analyzing certain situations during motion planning. 
     Therefore, it is not a 2D equivalent to the 3D viewer, but rather a simplified version of it that only 
     displays the tile layout, the movers, and their collision shapes/offsets. Other objects that may be 
     part of an environment are not displayed.
