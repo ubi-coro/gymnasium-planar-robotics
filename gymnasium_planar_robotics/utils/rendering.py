@@ -232,10 +232,10 @@ class MujocoViewerCollection(MujocoRenderer):
             if self.viewer is None:
                 self.viewer = MujocoOffScreenViewer(model=self.model, data=self.data, width=width, height=height, geomgroup=geomgroup)
                 self._viewers[viewer_name] = self.viewer
-                
+
                 if no_camera_specified:
                     self._set_cam_config()
-                    
+
             elif geomgroup is not None:
                 self.viewer.set_geomgroup(geomgroup)
         else:

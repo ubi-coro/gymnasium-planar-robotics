@@ -176,7 +176,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
 
         # impedance controller
         self.impedance_controller = None
-        
+
         # cam config
         default_cam_config = {
             'distance': 0.8,

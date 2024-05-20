@@ -47,7 +47,7 @@ Accordingly, if ``learn_jerk=False``, an action
 .. math::
     a_a := [a_{1x}, a_{1y}, ..., a_{nx}, a_{ny}]
 
-represents the accelerations for each mover in x and y direction of the base frame (unit: m/s²), where 
+represents the accelerations for each mover in x and y direction of the base frame (unit: m/s²), where
 
 .. math::
     a_{1x}, a_{1y}, ..., a_{nx}, a_{ny} \in [-a_{max},a_{max}]
@@ -57,8 +57,8 @@ represents the accelerations for each mover in x and y direction of the base fra
 Immediate Rewards
 -----------------
 
-The agent receives a reward of 50 if all movers reach their goals without collisions. In case of a collision either with another mover 
-or with a wall, the agent receives a reward of -50.For each timestep in which at least one mover has not reached its goal and in which 
+The agent receives a reward of 50 if all movers reach their goals without collisions. In case of a collision either with another mover
+or with a wall, the agent receives a reward of -50.For each timestep in which at least one mover has not reached its goal and in which
 there is no collision, the environment emits the following immediate reward:
 number of movers that have not reached their goals * (-1)
 
@@ -178,7 +178,7 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsSingleAgentEnv):
         use_mj_passive_viewer: bool = False,
     ) -> None:
         self.learn_jerk = learn_jerk
-        
+
         # cam config
         default_cam_config = {
             'distance': 1.1,
