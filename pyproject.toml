@@ -38,7 +38,8 @@ docs = [
     "sphinx-autobuild",
     "sphinxcontrib.spelling",
     "pydata-sphinx-theme",
-    "sphinx-copybutton"
+    "sphinx-copybutton",
+    "sphinxcontrib-video"
 ]
 
 [project.entry-points."gymnasium.envs"]

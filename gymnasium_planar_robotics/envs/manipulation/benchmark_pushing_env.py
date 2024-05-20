@@ -176,6 +176,14 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
 
         # impedance controller
         self.impedance_controller = None
+        
+        # cam config
+        default_cam_config = {
+            'distance': 0.8,
+            'azimuth': 160.0,
+            'elevation': -55.0,
+            'lookat': np.array([0.8, 0.2, 0.4]),
+        }
 
         super().__init__(
             layout_tiles=np.ones((3, 3)),
@@ -185,6 +193,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
             initial_mover_zpos=initial_mover_zpos,
             std_noise=std_noise,
             render_mode=render_mode,
+            default_cam_config=default_cam_config,
             render_every_cycle=render_every_cycle,
             num_cycles=num_cycles,
             collision_params=collision_params,

@@ -154,6 +154,8 @@ class MujocoViewerCollection(MujocoRenderer):
             no_camera_specified = camera_name is None and camera_id is None
             if no_camera_specified:
                 camera_name = 'track'
+                self.model.vis.global_.offwidth = self.width_no_camera_specified
+                self.model.vis.global_.offheight = self.height_no_camera_specified
                 width = self.width_no_camera_specified
                 height = self.height_no_camera_specified
 
@@ -230,11 +232,12 @@ class MujocoViewerCollection(MujocoRenderer):
             if self.viewer is None:
                 self.viewer = MujocoOffScreenViewer(model=self.model, data=self.data, width=width, height=height, geomgroup=geomgroup)
                 self._viewers[viewer_name] = self.viewer
+                
+                if no_camera_specified:
+                    self._set_cam_config()
+                    
             elif geomgroup is not None:
                 self.viewer.set_geomgroup(geomgroup)
-
-            if no_camera_specified:
-                self._set_cam_config()
         else:
             if self.viewer is None:
                 if self.use_mj_passive_viewer:
@@ -491,6 +494,7 @@ class Matplotlib2DViewer:
                 )[0]
                 self.goals.append(goal)
 
+        plt.tight_layout()
         plt.show(block=False)
         plt.pause(0.0001)
 

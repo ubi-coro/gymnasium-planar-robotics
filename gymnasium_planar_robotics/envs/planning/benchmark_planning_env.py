@@ -30,29 +30,37 @@ The observation space of this environment is a dictionary containing the followi
 Action Space
 ------------
 
-The action space is continuous and 2-dimensional. If ``learn_jerk=True``, an action
+The action space is continuous. If ``learn_jerk=True``, an action
 
 .. math::
-    a_j = [a_{jx}, a_{jy}] \in [-j_{max},j_{max}]^{2*num\_movers}
+    a_j := [j_{1x}, j_{1y}, ..., j_{nx}, j_{ny}]
 
-represents the desired jerks for each mover in x and y direction of the base frame (unit: m/s³), where ``j_max`` is the maximum
-possible jerk (see environment parameters).
+represents the desired jerks for each mover in x and y direction of the base frame (unit: m/s³), where
+
+.. math::
+    j_{1x}, j_{1y}, ..., j_{nx}, j_{ny} \in [-j_{max},j_{max}]
+
+``j_max`` is the maximum possible jerk (see environment parameters) and n denotes the number of movers.
 
 Accordingly, if ``learn_jerk=False``, an action
 
 .. math::
-    a_a = [a_{ax}, a_{ay}] \in [-a_{max},a_{max}]^{2*num\_movers}
+    a_a := [a_{1x}, a_{1y}, ..., a_{nx}, a_{ny}]
 
-represents the accelerations for each mover in x and y direction of the base frame (unit: m/s²), where ``a_max`` is the maximum
-possible acceleration (see environment parameters).
+represents the accelerations for each mover in x and y direction of the base frame (unit: m/s²), where 
+
+.. math::
+    a_{1x}, a_{1y}, ..., a_{nx}, a_{ny} \in [-a_{max},a_{max}]
+
+``a_max`` is the maximum possible acceleration (see environment parameters) and n denotes the number of movers.
 
 Immediate Rewards
 -----------------
 
-The agent receives a reward of 50 if all movers reach their goals without collisions. For each timestep in which at least one mover has
-not reached its goal and in which there is no collision, the environment emits the following immediate reward:
+The agent receives a reward of 50 if all movers reach their goals without collisions. In case of a collision either with another mover 
+or with a wall, the agent receives a reward of -50.For each timestep in which at least one mover has not reached its goal and in which 
+there is no collision, the environment emits the following immediate reward:
 number of movers that have not reached their goals * (-1)
-In case of a collision either with another mover or with a wall, the agent receives a reward of -50.
 
 Episode Termination
 -------------------
@@ -170,6 +178,14 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsSingleAgentEnv):
         use_mj_passive_viewer: bool = False,
     ) -> None:
         self.learn_jerk = learn_jerk
+        
+        # cam config
+        default_cam_config = {
+            'distance': 1.1,
+            'azimuth': 90.0,
+            'elevation': -65.0,
+            'lookat': np.array([0.44, 0.18, 0.067]),
+        }
 
         super().__init__(
             layout_tiles=layout_tiles,
@@ -179,6 +195,7 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsSingleAgentEnv):
             initial_mover_zpos=initial_mover_zpos,
             std_noise=std_noise,
             render_mode=render_mode,
+            default_cam_config=default_cam_config,
             render_every_cycle=render_every_cycle,
             num_cycles=num_cycles,
             collision_params=collision_params,

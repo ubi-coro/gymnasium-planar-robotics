@@ -38,6 +38,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
     'sphinx_copybutton',
+    'sphinxcontrib.video'
 ]
 
 templates_path = ['_templates']
