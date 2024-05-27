@@ -1,10 +1,10 @@
 Make Your Own Environment
 =========================
 
-GPR offers the possibility to develop research-specific environments with a planar motor system. To this end, GPR has a specific code design:
+GymPR offers the possibility to develop research-specific environments with a planar motor system. To this end, GymPR has a specific code design:
 
 .. image:: images/code_design.png
-   :width: 1200
+   :width: 600
 
 |br|
 
@@ -15,7 +15,7 @@ allows to add custom actuators for the movers, sensors, or robots to the MuJoCo 
 The ``BasicPlanarRoboticsEnv`` is designed independently from any RL API, since the main focus is on providing functionality that is related to the physics engine and the 
 planar motor system.
 
-To provide the user with a basic structure for single-agent and multi-agent RL, GPR contains the ``BasicPlanarRoboticsSingleAgentEnv`` and 
+To provide the user with a basic structure for single-agent and multi-agent RL, GymPR contains the ``BasicPlanarRoboticsSingleAgentEnv`` and 
 ``BasicPlanarRoboticsMultiAgentEnv`` that both include the functionality of the ``BasicPlanarRoboticsEnv``. A custom environment can be inherited from either 
 the single-agent or the multi-agent environment. The multi-agent environment follows the PettingZoo parallel API, since all movers, i.e. agents, 
 must be updated simultaneously in every control cycle. The single-agent environment follows the Gymnasium API and provides basic functionality for 

@@ -1,3 +1,7 @@
+##########################################################
+# Copyright (c) 2024 Lara Bergmann, Bielefeld University #
+##########################################################
+
 import numpy as np
 from gymnasium_planar_robotics.utils import rotations_utils
 

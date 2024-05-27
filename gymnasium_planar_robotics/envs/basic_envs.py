@@ -1,3 +1,7 @@
+##########################################################
+# Copyright (c) 2024 Lara Bergmann, Bielefeld University #
+##########################################################
+
 from abc import ABC, abstractmethod
 import gymnasium as gym
 from gymnasium import logger
@@ -64,10 +68,10 @@ class BasicPlanarRoboticsEnv:
             of the collision shape to detect wall collisions. Think of this offset as moving the wall, i.e. the edge of a tile
             without an adjacent tile, closer to the center of the tile.
 
-    :param mover_start_xy_pos: a numpy array of shape (2,num_movers) containing the initial (x,y) starting positions of each mover.
+    :param mover_start_xy_pos: a numpy array of shape (num_movers,2) containing the initial (x,y) starting positions of each mover.
         If set to None, the movers will be placed in the center of a tile, i.e. the number of tiles must be >= the number of
         movers; defaults to None.
-    :param mover_goal_xy_pos: a numpy array of shape (2,num_movers_with_goals) containing the initial (x,y) goal positions of the
+    :param mover_goal_xy_pos: a numpy array of shape (num_movers_with_goals,2) containing the initial (x,y) goal positions of the
         movers (num_movers_with_goals <= num_movers). Note that only the first 6 movers have different colors to make the
         movers clearly distinguishable. Movers without goals are shown in gray. If set to None, no goals will be displayed and
         all movers are colored in gray; defaults to None
@@ -912,7 +916,7 @@ class BasicPlanarRoboticsEnv:
             '\n\n\t<asset>'
             + '\n\t\t<material name="white" reflectance="0.01" shininess="0.01" specular="0.1" rgba="1 1 1 1" />'
             + '\n\t\t<material name="off_white" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.7 0.7 0.7 1" />'
-            + '\n\t\t<material name="gray" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.5 0.5 0.5 1"/>'
+            + '\n\t\t<material name="gray" reflectance="1" shininess="1" specular="1" rgba="0.5 0.5 0.5 1"/>'
             + '\n\t\t<material name="black" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.25 0.25 0.25 1" />'
             + '\n\t\t<material name="green" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.2852 0.5078 0.051 1" />'
             + '\n\t\t<material name="red" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.94 0.191 0.191 1" />'
@@ -922,9 +926,9 @@ class BasicPlanarRoboticsEnv:
             + '\n\t\t<material name="dark_blue" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0 0 1 1" />'
             + '\n\t\t<material name="light_blue" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.492 0.641 0.98 1" />'
             + '\n\t\t<material name="blue" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0. 0.543 0.649 1" />'
-            + '\n\t\t<material name="floor_mat" reflectance="0.01" shininess="0.01" specular="0.1" texture="texplane" '
+            + '\n\t\t<material name="floor_mat" reflectance="0.05" shininess="0.05" specular="0.1" texture="texplane" '
             + 'texuniform="true" />'
-            + '\n\t\t<texture name="texplane" builtin="flat" height="256" width="256" rgb1=".7 .7 .7" rgb2=".7 .7 .7" />'
+            + '\n\t\t<texture name="texplane" builtin="flat" height="256" width="256" rgb1=".8 .8 .8" rgb2=".8 .8 .8" />'
             + '\n\t\t<texture type="skybox" builtin="gradient" rgb1="0.8 0.898 1" rgb2="0.8 0.898 1" width="32" height="32" />'
             + custom_assets_xml_str
             + '\n\t</asset>'

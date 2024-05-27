@@ -1,8 +1,8 @@
 Changelog
 =========
 
-Pre-Release v0.0.1a10
----------------------
+Release v0.0.1
+--------------
 
 General
 ^^^^^^^

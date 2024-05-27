@@ -1,3 +1,7 @@
+##########################################################
+# Copyright (c) 2024 Lara Bergmann, Bielefeld University #
+##########################################################
+
 import pytest
 import numpy as np
 from gymnasium_planar_robotics.envs.planning.benchmark_planning_env import BenchmarkPlanningEnv

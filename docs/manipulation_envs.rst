@@ -1,7 +1,7 @@
 Manipulation Environments
 =========================
 
-GPR contains environments for object manipulation with a planar motor system.
+GymPR contains environments for object manipulation with a planar motor system.
 
 .. note:: 
    New environments will be added in the future.

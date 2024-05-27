@@ -1,3 +1,7 @@
+##########################################################
+# Copyright (c) 2024 Lara Bergmann, Bielefeld University #
+##########################################################
+
 import numpy as np
 import mujoco.viewer
 from gymnasium.envs.mujoco.mujoco_rendering import MujocoRenderer, BaseRender, OffScreenViewer, WindowViewer

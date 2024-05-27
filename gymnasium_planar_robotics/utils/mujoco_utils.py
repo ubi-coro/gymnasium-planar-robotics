@@ -1,3 +1,7 @@
+##########################################################
+# Copyright (c) 2024 Lara Bergmann, Bielefeld University #
+##########################################################
+
 import numpy as np
 import mujoco
 from mujoco import MjData, MjModel, mjtObj

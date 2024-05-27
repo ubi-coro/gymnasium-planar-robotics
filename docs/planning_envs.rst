@@ -1,7 +1,7 @@
 Planning Environments
 =====================
 
-GPR contains environments for motion planning with multiple movers.
+GymPR contains environments for motion planning with multiple movers.
 
 .. note:: 
    New environments will be added in the future.

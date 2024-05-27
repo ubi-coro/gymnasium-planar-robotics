@@ -1,3 +1,7 @@
+##########################################################
+# Copyright (c) 2024 Lara Bergmann, Bielefeld University #
+##########################################################
+
 """The ``BenchmarkPlanningEnv`` is a simple motion planning environment that should be understood as an example of how motion planning
 with planar motor systems can look like. This environment is therefore intended for parameter or algorithm tests.
 
@@ -58,16 +62,16 @@ Immediate Rewards
 -----------------
 
 The agent receives a reward of 50 if all movers reach their goals without collisions. In case of a collision either with another mover
-or with a wall, the agent receives a reward of -50.For each timestep in which at least one mover has not reached its goal and in which
+or with a wall, the agent receives a reward of -50. For each timestep in which at least one mover has not reached its goal and in which
 there is no collision, the environment emits the following immediate reward:
 number of movers that have not reached their goals * (-1)
 
 Episode Termination
 -------------------
 
-Each episode has a time limit of 50 environment steps. If the time limit is reached, the episode is truncated. Thus, each episode
-has 50 environment steps, except that all movers have reached their goals without collisions or if there has been a collision between
-two movers or between a mover and a wall. In these cases, the episode terminates immediately regardless of the time limit.
+Each episode has a time limit of 50 environment steps. If the time limit is reached, the episode is truncated. Thus, each episode has
+50 environment steps, except that all movers have reached their goals or there has been a collision. In these cases, the episode
+terminates immediately, regardless of the time limit.
 
 Version History
 ---------------

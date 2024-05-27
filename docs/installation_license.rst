@@ -1,5 +1,7 @@
 Installation & License
 ======================
+GymPR is open-source and published under the GNU General Public License v3.0.
+
 The Gymnasium-Planar-Robotics package can be installed via PIP:
 
 .. code:: bash

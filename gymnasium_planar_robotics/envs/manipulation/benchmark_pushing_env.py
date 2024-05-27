@@ -1,3 +1,7 @@
+##########################################################
+# Copyright (c) 2024 Lara Bergmann, Bielefeld University #
+##########################################################
+
 """The ``BenchmarkPushingEnv`` is a simple pushing environment that should be understood as an example of how object manipulation
 with planar motor systems can look like. This environment is therefore intended for parameter or algorithm tests.
 
