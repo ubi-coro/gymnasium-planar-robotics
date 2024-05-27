@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gymnasium-planar-robotics"
-description = "Gymnasium environments for planar robotics"
+description = "A library for reinforcement learning environments in the field of planar robotics"
 readme = "README.md"
 requires-python = ">= 3.10"
 authors = [{ name = "Lara Bergmann", email = "lara.bergmann@uni-bielefeld.de" }]
 license = { text = "GPL-3.0 License" }
-keywords = ["Reinforcement Learning", "Gymnasium", "RL", "AI", "Robotics", "Planar Robotics"]
+keywords = ["Reinforcement Learning", "Gymnasium", "RL", "AI", "Robotics", "Planar Robotics", "Magnetic Levitation"]
 classifiers = [
     "Development Status :: 4 - Beta",  # change to `5 - Production/Stable` when ready
     "License :: OSI Approved :: MIT License",

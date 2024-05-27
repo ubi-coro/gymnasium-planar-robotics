@@ -34,9 +34,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install .[tests,docs]
 
-    - name: Format
-      run: |
-        make format
     - name: Check codestyle
       run: |
         make check-codestyle
@@ -54,7 +51,6 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
-        # Upload entire repository
         path: './docs/_build/html'
     - name: Deploy to GitHub Pages
       id: deployment
