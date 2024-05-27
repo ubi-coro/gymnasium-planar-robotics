@@ -2,7 +2,7 @@
 This library contains reinforcement learning environments for motion planning and object manipulation in the field of planar robotics. The environments follow either the [Gymnasium](https://gymnasium.farama.org/) API for single-agent RL or the [PettingZoo parallel API](https://pettingzoo.farama.org/api/parallel/) for multi-agent RL. All environments are based on the [MuJoCo](https://mujoco.org/) physics engine. Note that this library depends on the latest MuJoCo Python bindings. 
 [mujoco-py](https://github.com/openai/mujoco-py) is not supported.
 
-<img src="https://github.com/ubi-coro/gymnasium-planar-robotics/blob/main/docs/images/visual_abstract.png" />
+<img src="https://github.com/ubi-coro/gymnasium-planar-robotics/raw/main/docs/images/visual_abstract.png" />
 
 ## Installation
 The Gymnasium-Planar-Robotics package can be installed via PIP:
