@@ -7,13 +7,21 @@ Gymnasium-Planar-Robotics
 =========================
 `Gymnasium-Planar-Robotics (GymPR) <https://github.com/ubi-coro/gymnasium-planar-robotics/>`_ is a library that contains reinforcement learning (RL) environments for motion planning
 and object manipulation in the field of planar robotics. The main component of every environment is a magnetic levitation system, a so-called planar motor system, that consists of two basic
-components that are shown in the Figure below. Firstly, mobile permanent magnets, so-called movers, which consist of an housing and a complex permanent magnet structure on the lower side of 
-the mover. Secondly, static motor modules, so-called tiles, that are the active components of the drive system. As shown in the Figure, the tiles enable the 
+components that are shown in the Figure below. Firstly, mobile permanent magnets, so-called movers, consist of a housing and a complex permanent magnet structure on the lower side of 
+the mover. Secondly, static motor modules, so-called tiles, are the active components of the drive system. As shown in the Figure, the tiles enable the 
 coil-induced emission of electromagnetic fields (yellow) that interact with the mover's field (blue). During operation, the movers hover above the tiles and can be controlled in six dimensions 
 by adjusting the currents in the coils contained in the tiles.
 
 .. image:: images/visual_abstract.png
    :width: 1100
+   :height: 400
+
+|br|
+
+The six degrees of freedom of a mover are shown in the following picture:
+
+.. image:: images/img_mover_dofs.png
+   :width: 450
    :height: 400
 
 |br|
