@@ -8,6 +8,7 @@ description = "Gymnasium environments for planar robotics"
 readme = "README.md"
 requires-python = ">= 3.10"
 authors = [{ name = "Lara Bergmann", email = "lara.bergmann@uni-bielefeld.de" }]
+license = { text = "GPL-3.0 License" }
 keywords = ["Reinforcement Learning", "Gymnasium", "RL", "AI", "Robotics", "Planar Robotics"]
 classifiers = [
     "Development Status :: 4 - Beta",  # change to `5 - Production/Stable` when ready
@@ -44,6 +45,11 @@ docs = [
 
 [project.entry-points."gymnasium.envs"]
 __root__ = "gymnasium_planar_robotics.__init__:register_gymnasium_envs"
+
+[project.urls]
+Homepage = "https://www.uni-bielefeld.de/fakultaeten/technische-fakultaet/arbeitsgruppen/kollaborative-robotik/"
+Repository = "https://github.com/ubi-coro/gymnasium-planar-robotics"
+Documentation = "https://ubi-coro.github.io/gymnasium-planar-robotics/"
 
 # ruff
 
