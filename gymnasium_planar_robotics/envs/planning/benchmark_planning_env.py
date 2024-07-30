@@ -298,21 +298,23 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsSingleAgentEnv):
         mover_actuator_xml_str = '\n\n\t<actuator>' + '\n\t\t<!-- mover actuators -->'
         for idx_mover in range(0, self.num_movers):
             joint_name = f'mover_joint_{idx_mover}'
+            mover_mass = self.mover_mass if isinstance(self.mover_mass, float) else self.mover_mass[idx_mover]
+
             if self.learn_jerk:
                 mover_actuator_xml_str += (
                     f'\n\t\t<general name="mover_actuator_x_{idx_mover}" joint="{joint_name}" gear="1 0 0 0 0 0" dyntype="integrator" '
-                    + f'gaintype="fixed" gainprm="{self.mover_mass} 0 0" biastype="none" actearly="true"/>'
+                    + f'gaintype="fixed" gainprm="{mover_mass} 0 0" biastype="none" actearly="true"/>'
                     + f'\n\t\t<general name="mover_actuator_y_{idx_mover}" joint="{joint_name}" gear="0 1 0 0 0 0" '
-                    + f'dyntype="integrator" gaintype="fixed" gainprm="{self.mover_mass} 0 0" biastype="none" actearly="true"/>'
+                    + f'dyntype="integrator" gaintype="fixed" gainprm="{mover_mass} 0 0" biastype="none" actearly="true"/>'
                     + '\n'
                 )
             else:
                 # learn acceleration
                 mover_actuator_xml_str += (
                     f'\n\t\t<general name="mover_actuator_x_{idx_mover}" joint="{joint_name}" gear="1 0 0 0 0 0" dyntype="none" '
-                    + f'gaintype="fixed" gainprm="{self.mover_mass} 0 0" biastype="none"/>'
+                    + f'gaintype="fixed" gainprm="{mover_mass} 0 0" biastype="none"/>'
                     + f'\n\t\t<general name="mover_actuator_y_{idx_mover}" joint="{joint_name}" gear="0 1 0 0 0 0" dyntype="none" '
-                    + f'gaintype="fixed" gainprm="{self.mover_mass} 0 0" biastype="none"/>'
+                    + f'gaintype="fixed" gainprm="{mover_mass} 0 0" biastype="none"/>'
                     + '\n'
                 )
 

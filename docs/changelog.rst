@@ -1,6 +1,14 @@
 Changelog
 =========
 
+Release v1.0.2 (2024-07-30)
+---------------------------
+
+Bug Fixes
+^^^^^^^^^
+1. Fixed a bug in ``BenchmarkPlanningEnv`` (mover actuator XML string) where different mover masses were not taken into account
+
+
 Release v1.0.1 (2024-05-28)
 ---------------------------
 
