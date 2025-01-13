@@ -829,6 +829,25 @@ class BasicPlanarRoboticsEnv:
                         + f' pos="{self.x_pos_tiles[idx_tile_x][idx_tile_y]} {self.y_pos_tiles[idx_tile_x][idx_tile_y]} 0"/>'
                     )
 
+        tile_xml_str += '\n\n\t\t\t<!-- Lines -->'
+        line_z_pos = self.tile_size[2] - 0.0005
+
+        for idx_tile_x in range(1, self.num_tiles_x):
+            offset = idx_tile_x * self.tile_size[0] * 2
+            tile_xml_str += (
+                '\n\t\t\t<geom type="cylinder" size="0.001"'
+                + f' fromto="{offset} 0 {line_z_pos} {offset} {self.tile_size[1] * 2 * self.num_tiles_y} {line_z_pos}"'
+                + ' material="line_mat" contype="0" conaffinity="0" />'
+            )
+
+        for idx_tile_y in range(1, self.num_tiles_y):
+            offset = idx_tile_y * self.tile_size[1] * 2
+            tile_xml_str += (
+                '\n\t\t\t<geom type="cylinder" size="0.001"'
+                + f' fromto="0 {offset} {line_z_pos} {self.tile_size[0] * 2 * self.num_tiles_x} {offset} {line_z_pos}"'
+                + ' material="line_mat" contype="0" conaffinity="0" />'
+            )
+
         # movers and correspondig goals and actuators
         material_str_list = ['green', 'blue', 'orange', 'red', 'yellow', 'light_blue']
         mover_xml_str = ''
@@ -928,6 +947,7 @@ class BasicPlanarRoboticsEnv:
             + '\n\t\t<material name="blue" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0. 0.543 0.649 1" />'
             + '\n\t\t<material name="floor_mat" reflectance="0.05" shininess="0.05" specular="0.1" texture="texplane" '
             + 'texuniform="true" />'
+            + '\n\t\t<material name="line_mat" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.5 0.5 0.5 1"/>'
             + '\n\t\t<texture name="texplane" builtin="flat" height="256" width="256" rgb1=".8 .8 .8" rgb2=".8 .8 .8" />'
             + '\n\t\t<texture type="skybox" builtin="gradient" rgb1="0.8 0.898 1" rgb2="0.8 0.898 1" width="32" height="32" />'
             + custom_assets_xml_str
