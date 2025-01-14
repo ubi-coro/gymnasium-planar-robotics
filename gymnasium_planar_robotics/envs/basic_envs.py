@@ -830,23 +830,36 @@ class BasicPlanarRoboticsEnv:
                     )
 
         tile_xml_str += '\n\n\t\t\t<!-- Lines -->'
-        line_z_pos = self.tile_size[2] - 0.0005
+        line_height = 0.001 / 2
+        line_z_pos = self.tile_size[2] - line_height + 0.00001
 
-        for idx_tile_x in range(1, self.num_tiles_x):
-            offset = idx_tile_x * self.tile_size[0] * 2
-            tile_xml_str += (
-                '\n\t\t\t<geom type="cylinder" size="0.001"'
-                + f' fromto="{offset} 0 {line_z_pos} {offset} {self.tile_size[1] * 2 * self.num_tiles_y} {line_z_pos}"'
-                + ' material="line_mat" contype="0" conaffinity="0" />'
-            )
+        for tile_row in range(self.num_tiles_x):
+            for tile_col in range(self.num_tiles_y):
+                if not self.layout_tiles[tile_row, tile_col]:
+                    continue
 
-        for idx_tile_y in range(1, self.num_tiles_y):
-            offset = idx_tile_y * self.tile_size[1] * 2
-            tile_xml_str += (
-                '\n\t\t\t<geom type="cylinder" size="0.001"'
-                + f' fromto="0 {offset} {line_z_pos} {self.tile_size[0] * 2 * self.num_tiles_x} {offset} {line_z_pos}"'
-                + ' material="line_mat" contype="0" conaffinity="0" />'
-            )
+                has_top = (tile_row - 1) >= 0 and self.layout_tiles[tile_row - 1, tile_col] == 1
+                has_left = (tile_col - 1) >= 0 and self.layout_tiles[tile_row, tile_col - 1] == 1
+
+                if has_top:
+                    x_pos = tile_row * self.tile_size[0] * 2
+                    y_start = tile_col * self.tile_size[1] * 2
+                    y_end = (tile_col + 1) * self.tile_size[1] * 2
+
+                    tile_xml_str += (
+                        f'\n\t\t\t<site type="box" size="{line_height}" material="line_mat"'
+                        + f' fromto="{x_pos} {y_start} {line_z_pos} {x_pos} {y_end} {line_z_pos}" />'
+                    )
+
+                if has_left:
+                    x_start = tile_row * self.tile_size[0] * 2
+                    x_end = (tile_row + 1) * self.tile_size[0] * 2
+                    y_pos = tile_col * self.tile_size[1] * 2
+
+                    tile_xml_str += (
+                        f'\n\t\t\t<site type="box" size="{line_height}" material="line_mat"'
+                        + f' fromto="{x_start} {y_pos} {line_z_pos} {x_end} {y_pos} {line_z_pos}" />'
+                    )
 
         # movers and correspondig goals and actuators
         material_str_list = ['green', 'blue', 'orange', 'red', 'yellow', 'light_blue']
