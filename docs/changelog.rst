@@ -6,7 +6,7 @@ Release v1.0.3 (2025-01-14)
 
 General
 ^^^^^^^
-1. Add grid lines to visualize tile boundaries (@cedricgrothues)
+1. Add grid lines to visualize tile boundaries :spelling:ignore:`(@cedricgrothues)`
 
 Release v1.0.2 (2024-07-30)
 ---------------------------
