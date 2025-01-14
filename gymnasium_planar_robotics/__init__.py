@@ -1,4 +1,4 @@
-__version__ = '1.0.2'
+__version__ = '1.0.3'
 
 from gymnasium.envs.registration import register
 
@@ -10,11 +10,11 @@ from gymnasium_planar_robotics.utils.rendering import Matplotlib2DViewer, Mujoco
 from gymnasium_planar_robotics.utils.impedance_control import MoverImpedanceController
 
 __all__ = [
-    'BasicPlanarRoboticsSingleAgentEnv',
     'BasicPlanarRoboticsMultiAgentEnv',
+    'BasicPlanarRoboticsSingleAgentEnv',
     'Matplotlib2DViewer',
-    'MujocoViewerCollection',
     'MoverImpedanceController',
+    'MujocoViewerCollection',
 ]
 
 
