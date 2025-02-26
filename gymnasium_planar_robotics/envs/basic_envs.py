@@ -217,7 +217,7 @@ class BasicPlanarRoboticsEnv:
             mover_params = {}
         self.mover_size = mover_params.get('size', np.array([0.155 / 2, 0.155 / 2, 0.012 / 2]))
         self.mover_mass = mover_params.get('mass', 1.24)
-        self.mover_shape = mover_params.get('shape', 'mesh')
+        self.mover_shape = mover_params.get('shape', 'box')
 
         mover_mesh = mover_params.get('mesh', {})
         self.mover_mesh_mover_stl_path = self._resolve_mesh_path(mover_mesh.get('mover_stl_path', 'beckhoff_apm4330_mover'))
