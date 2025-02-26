@@ -36,24 +36,29 @@ class BasicPlanarRoboticsEnv:
         - mass: 5.6 [kg]
         - size: [0.24/2, 0.24/2, 0.0352/2] (x,y,z) [m] (note: half-size)
     :param mover_params: Dictionary specifying mover properties. If None, default values are used. Supported keys:
+
         - mass (float | numpy.ndarray): Mass in kilograms. Options:
             - Single float: Same mass for all movers
             - 1D array (num_movers,): Individual masses per mover
-            Default: 1.24 [kg]
+
+        Default: 1.24 [kg]
 
         - shape (str | list[str]): Mover shape type. Must be one of:
             - 'box': Rectangular cuboid
             - 'cylinder': Cylindrical shape
             - 'mesh': Custom 3D mesh
+
             Default: 'box'
 
         - size (numpy.ndarray): Shape dimensions in meters. Format depends on shape:
             - For 'box': Half-sizes (x, y, z)
             - For 'cylinder': (radius, height, _)
             - For 'mesh': Scale factors (x, y, z)
+
             Specification options:
             - 1D array (3,): Same size for all movers
             - 2D array (num_movers, 3): Individual sizes per mover
+
             Default: [0.155/2, 0.155/2, 0.012/2] [m]
 
         - mesh (dict): Configuration for mesh-based shapes. Required when shape='mesh'. Contains:
@@ -73,10 +78,10 @@ class BasicPlanarRoboticsEnv:
             - bumper_mass (float | numpy.ndarray): Bumper mass in kilograms. Can be specified as:
                 - Single float: Same mass applied to all bumpers
                 - 1D array (num_movers,): Individual masses for each bumper
+
                 Default: 0.1 [kg]
 
         Note: Custom mesh STL files must have their origin at the mover's center.
-
     :param initial_mover_zpos: the initial distance between the bottom of the mover and the top of a tile, defaults to 0.005 [m]
     :param table_height: the height of a table on which the tiles are placed, defaults to 0.4 [m]
     :param std_noise: the standard deviation of a Gaussian with zero mean used to add noise, defaults to 1e-5. The standard
