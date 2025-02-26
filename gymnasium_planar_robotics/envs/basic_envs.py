@@ -39,7 +39,7 @@ class BasicPlanarRoboticsEnv:
         - mass (float | numpy.ndarray): Mass in kilograms. Options:
             - Single float: Same mass for all movers
             - 1D array (num_movers,): Individual masses per mover
-            Default: `1.24 [kg]`
+            Default: 1.24 [kg]
 
         - shape (str | list[str]): Mover shape type. Must be one of:
             - 'box': Rectangular cuboid
@@ -58,9 +58,18 @@ class BasicPlanarRoboticsEnv:
 
         - mesh (dict): Configuration for mesh-based shapes. Required when shape='mesh'. Contains:
             - mover_stl_path (str): Path to mover mesh STL file or one of the predefined meshes:
-                - 'beckhoff_apm4220_mover': Beckhoff APM4220 mover mesh (default)
+                - 'beckhoff_apm4330_mover': Beckhoff APM4220 mover mesh (default)
+                - 'beckhoff_apm4220_mover': Beckhoff APM4220 mover mesh
+                - 'beckhoff_apm4550_mover': Beckhoff APM4550 mover mesh
+                - 'planar_motor_M3-06': Planar Motor M3-06 mover mesh
+                - 'planar_motor_M3-15': Planar Motor M3-15 mover mesh
+                - 'planar_motor_M3-25': Planar Motor M3-25 mover mesh
+                - 'planar_motor_M4-11': Planar Motor M4-11 mover mesh
+                - 'planar_motor_M4-18': Planar Motor M4-18 mover mesh
             - bumper_stl_path (str | None): Path to bumper mesh STL file or one of the predefined meshes:
-                - 'beckhoff_apm4220_bumper': Beckhoff APM4220 bumper mesh (default)
+                - 'beckhoff_apm4330_bumper': Beckhoff APM4330 bumper mesh (default)
+                - 'beckhoff_apm4220_bumper': Beckhoff APM4220 bumper mesh
+                - 'beckhoff_apm4550_bumper': Beckhoff APM4550 bumper mesh
             - bumper_mass (float | numpy.ndarray): Bumper mass in kilograms. Can be specified as:
                 - Single float: Same mass applied to all bumpers
                 - 1D array (num_movers,): Individual masses for each bumper
@@ -206,8 +215,8 @@ class BasicPlanarRoboticsEnv:
         self.mover_shape = mover_params.get('shape', 'mesh')
 
         mover_mesh = mover_params.get('mesh', {})
-        self.mover_mesh_mover_stl_path = self._resolve_mesh_path(mover_mesh.get('mover_stl_path', 'beckhoff_apm4220_mover'))
-        self.mover_mesh_bumper_stl_path = self._resolve_mesh_path(mover_mesh.get('bumper_stl_path', 'beckhoff_apm4220_bumper'))
+        self.mover_mesh_mover_stl_path = self._resolve_mesh_path(mover_mesh.get('mover_stl_path', 'beckhoff_apm4330_mover'))
+        self.mover_mesh_bumper_stl_path = self._resolve_mesh_path(mover_mesh.get('bumper_stl_path', 'beckhoff_apm4330_bumper'))
         self.mover_mesh_bumper_mass = mover_mesh.get('bumper_mass', 0.1)
 
         self.initial_mover_zpos = initial_mover_zpos
@@ -1364,7 +1373,9 @@ class BasicPlanarRoboticsEnv:
 
         # check mover mesh params
         assert Path(self.mover_mesh_mover_stl_path).exists(), 'Mover mesh path does not exist.'
-        assert Path(self.mover_mesh_bumper_stl_path).exists(), 'Bumper mesh path does not exist.'
+        assert self.mover_mesh_bumper_stl_path is None or Path(self.mover_mesh_bumper_stl_path).exists(), (
+            'Bumper mesh path does not exist.'
+        )
         assert self.mover_mesh_bumper_mass >= 0, 'Bumper mass must be non-negative.'
 
     def _check_collision_params(self) -> None:
@@ -1533,14 +1544,26 @@ class BasicPlanarRoboticsEnv:
 
         return resolved_mover_size
 
-    def _resolve_mesh_path(self, path: str) -> Path:
+    def _resolve_mesh_path(self, path: str) -> Path | None:
         """Resolve a mesh path string to a Path object, either from predefined
         meshes or as a direct path.
         """
         predefined_meshes = {
             'beckhoff_apm4220_mover': ASSETS_DIR / 'beckhoff_apm4220_mover.stl',
             'beckhoff_apm4220_bumper': ASSETS_DIR / 'beckhoff_apm4220_bumper.stl',
+            'beckhoff_apm4330_mover': ASSETS_DIR / 'beckhoff_apm4330_mover.stl',
+            'beckhoff_apm4330_bumper': ASSETS_DIR / 'beckhoff_apm4330_bumper.stl',
+            'beckhoff_apm4550_mover': ASSETS_DIR / 'beckhoff_apm4550_mover.stl',
+            'beckhoff_apm4550_bumper': ASSETS_DIR / 'beckhoff_apm4550_bumper.stl',
+            'planar_motor_M3-06': ASSETS_DIR / 'planar_motor_M3-06-04.stl',
+            'planar_motor_M3-15': ASSETS_DIR / 'planar_motor_M3-15-05.stl',
+            'planar_motor_M3-25': ASSETS_DIR / 'planar_motor_M3-25-05.stl',
+            'planar_motor_M4-11': ASSETS_DIR / 'planar_motor_M4-11-01.stl',
+            'planar_motor_M4-18': ASSETS_DIR / 'planar_motor_M4-18-01.stl',
         }
+
+        if path is None:
+            return None
 
         if path in predefined_meshes:
             return predefined_meshes[path]
