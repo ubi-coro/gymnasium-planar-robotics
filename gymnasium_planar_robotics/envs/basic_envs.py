@@ -864,7 +864,10 @@ class BasicPlanarRoboticsEnv:
             mover_mesh_name = f'mover_mesh_{idx_mover}'
             bumper_mesh_name = f'bumper_mesh_{idx_mover}'
 
-            asset_str = f'\n\t\t<mesh name="{mover_mesh_name}" file="{self.mover_mesh_mover_stl_path}" scale="{size[0]} {size[1]} {size[2]}" />'
+            asset_str = (
+                f'\n\t\t<mesh name="{mover_mesh_name}" file="{self.mover_mesh_mover_stl_path}"'
+                f' scale="{size[0]} {size[1]} {size[2]}" />'
+            )
 
             body_str = (
                 f'\n\t\t<body name="mover_{idx_mover}" pos="{x_pos} {y_pos} {z_pos:.5f}" gravcomp="1">'
@@ -874,7 +877,10 @@ class BasicPlanarRoboticsEnv:
             )
 
             if self.mover_mesh_bumper_stl_path is not None:
-                asset_str += f'\n\t\t<mesh name="{bumper_mesh_name}" file="{self.mover_mesh_bumper_stl_path}" scale="{size[0]} {size[1]} {size[2]}" />'
+                asset_str += (
+                    f'\n\t\t<mesh name="{bumper_mesh_name}" file="{self.mover_mesh_bumper_stl_path}"'
+                    f' scale="{size[0]} {size[1]} {size[2]}" />'
+                )
 
                 if isinstance(self.mover_mesh_bumper_mass, np.ndarray):
                     bumper_mass = self.mover_mesh_bumper_mass[idx_mover]
@@ -1131,7 +1137,8 @@ class BasicPlanarRoboticsEnv:
             + f'\n\t\t<geom name="ground_plane" pos="{x_pos_table} {y_pos_table} {-self.tile_size[2] * 2 - self.table_height}" '
             + 'type="plane" size="10 10 10" material="floor_mat"/>'
             + f'\n\t\t<geom name="table" pos="{x_pos_table} {y_pos_table} {-self.tile_size[2] - self.table_height / 2}" '
-            + f'size="{(self.num_tiles_x * (self.tile_size[0] * 2) + 0.1) / 2} {(self.num_tiles_y * (self.tile_size[1] * 2) + 0.1) / 2} '
+            + f'size="{(self.num_tiles_x * (self.tile_size[0] * 2) + 0.1) / 2} '
+            + f'{(self.num_tiles_y * (self.tile_size[1] * 2) + 0.1) / 2} '
             + f'{self.table_height / 2}" type="box" material="gray" mass="20"/>'
             + '\n\n\t\t<!-- tiles -->'
             + f'\n\t\t<body name="tile_body" childclass="planar_robotics" pos="0 0 {-self.tile_size[2]}" gravcomp="1">'
