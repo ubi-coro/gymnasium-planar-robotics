@@ -135,7 +135,6 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsSingleAgentEnv):
 
         - collision shape (key: 'shape'): can be 'box' or 'circle', defaults to 'circle'
         - size of the collision shape (key: 'size'), defaults to 0.11 [m]:
-
             - collision shape 'circle':
                 a single float value which corresponds to the radius of the circle, or a numpy array of shape (num_movers,) to specify
                 individual values for each mover

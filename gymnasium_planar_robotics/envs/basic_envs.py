@@ -41,7 +41,7 @@ class BasicPlanarRoboticsEnv:
             - Single float: Same mass for all movers
             - 1D array (num_movers,): Individual masses per mover
 
-        Default: 1.24 [kg]
+            Default: 1.24 [kg]
 
         - shape (str | list[str]): Mover shape type. Must be one of:
             - 'box': Rectangular cuboid
@@ -98,7 +98,6 @@ class BasicPlanarRoboticsEnv:
 
         - collision shape (key: 'shape'): can be 'box' or 'circle', defaults to 'circle'
         - size of the collision shape (key: 'size'), defaults to 0.11 [m]:
-
             - collision shape 'circle':
                 a single float value which corresponds to the radius of the circle, or a numpy array of shape (num_movers,) to specify
                 individual values for each mover
@@ -123,19 +122,19 @@ class BasicPlanarRoboticsEnv:
         objects, robots, etc. to the model. The keys determine where to add a string in the xml structure and the values contain
         the xml string to add. The following keys are accepted:
 
-        - 'custom_compiler_xml_str':
+        - custom_compiler_xml_str:
             A custom 'compiler' xml element. Note that the entire default 'compiler' element is replaced.
-        - 'custom_visual_xml_str':
+        - custom_visual_xml_str:
             A custom 'visual' xml element. Note that the entire default 'visual' element is replaced.
-        - 'custom_option_xml_str':
+        - custom_option_xml_str:
             A custom 'option' xml element. Note that the entire default 'option' element is replaced.
-        - 'custom_assets_xml_str':
+        - custom_assets_xml_str:
             This xml string adds elements to the 'asset' grouping element.
-        - 'custom_default_xml_str':
+        - custom_default_xml_str:
             This xml string adds elements to the 'default' grouping element.
-        - 'custom_worldbody_xml_str':
+        - custom_worldbody_xml_str:
             This xml string adds elements to the 'worldbody' grouping element.
-        - 'custom_outworldbody_xml_str':
+        - custom_outworldbody_xml_str:
             This xml string should be used to include files or add elements other than 'compiler', 'visual', 'option', 'asset',
             'default' or 'worldbody'.
 
@@ -174,9 +173,9 @@ class BasicPlanarRoboticsEnv:
             self.std_noise = np.array([std_noise, std_noise, std_noise])
         else:
             # use possibly different standard deviations for position, velocity and acceleration
-            assert isinstance(std_noise, np.ndarray) and std_noise.shape == (3,), (
-                'noise standard deviation has to be a float or a numpy array of shape (3,)'
-            )
+            assert isinstance(std_noise, np.ndarray) and std_noise.shape == (
+                3,
+            ), 'noise standard deviation has to be a float or a numpy array of shape (3,)'
             self.std_noise = std_noise
 
         # tile configuration
@@ -920,19 +919,19 @@ class BasicPlanarRoboticsEnv:
             objects, robots, etc. to the model. The keys determine where to add a string in the xml structure and the values contain
             the xml string to add. The following keys are accepted:
 
-            - 'custom_compiler_xml_str':
+            - custom_compiler_xml_str:
                 A custom 'compiler' xml element. Note that the entire default 'compiler' element is replaced.
-            - 'custom_visual_xml_str':
+            - custom_visual_xml_str:
                 A custom 'visual' xml element. Note that the entire default 'visual' element is replaced.
-            - 'custom_option_xml_str':
+            - custom_option_xml_str:
                 A custom 'option' xml element. Note that the entire default 'option' element is replaced.
-            - 'custom_assets_xml_str':
+            - custom_assets_xml_str:
                 This xml string adds elements to the 'asset' grouping element.
-            - 'custom_default_xml_str':
+            - custom_default_xml_str:
                 This xml string adds elements to the 'default' grouping element.
-            - 'custom_worldbody_xml_str':
+            - custom_worldbody_xml_str:
                 This xml string adds elements to the 'worldbody' grouping element.
-            - 'custom_outworldbody_xml_str':
+            - custom_outworldbody_xml_str:
                 This xml string should be used to include files or add elements other than 'compiler', 'visual', 'option', 'asset',
                 'default' or 'worldbody'.
 
@@ -1375,19 +1374,19 @@ class BasicPlanarRoboticsEnv:
         # check that the mover shape is valid
         valid_shapes = ['box', 'cylinder', 'mesh']
         if isinstance(self.mover_shape, list):
-            assert all(shape in valid_shapes for shape in self.mover_shape), (
-                "Invalid mover shape. Must be one of: 'box', 'cylinder', 'mesh'."
-            )
+            assert all(
+                shape in valid_shapes for shape in self.mover_shape
+            ), "Invalid mover shape. Must be one of: 'box', 'cylinder', 'mesh'."
         else:
-            assert self.mover_shape in valid_shapes, (
-                f"Invalid mover shape '{self.mover_shape}'. Must be one of: 'box', 'cylinder', 'mesh'."
-            )
+            assert (
+                self.mover_shape in valid_shapes
+            ), f"Invalid mover shape '{self.mover_shape}'. Must be one of: 'box', 'cylinder', 'mesh'."
 
         # check mover mesh params
         assert Path(self.mover_mesh_mover_stl_path).exists(), 'Mover mesh path does not exist.'
-        assert self.mover_mesh_bumper_stl_path is None or Path(self.mover_mesh_bumper_stl_path).exists(), (
-            'Bumper mesh path does not exist.'
-        )
+        assert (
+            self.mover_mesh_bumper_stl_path is None or Path(self.mover_mesh_bumper_stl_path).exists()
+        ), 'Bumper mesh path does not exist.'
         assert self.mover_mesh_bumper_mass >= 0, 'Bumper mass must be non-negative.'
 
     def _check_collision_params(self) -> None:
