@@ -9,6 +9,8 @@ from mujoco import MjData, MjModel
 import matplotlib.pyplot as plt
 from gymnasium_planar_robotics.utils import rotations_utils
 from matplotlib.patches import Rectangle, Circle, Arrow
+import sys
+from typing import Callable
 
 
 class MujocoWindowViewer(WindowViewer):
@@ -309,6 +311,8 @@ class Matplotlib2DViewer:
     :param arrow_scale: the scaling factor of the arrow length, which displays the current (x,y)-velocity of a mover, defaults
         to 0.3
     :param figure_size: the size of the matplotlib figure, defaults to (7,7)
+    :param key_press_callback: a callback function that is called when a key is pressed, defaults to None
+    :param key_release_callback: a callback function that is called when a key is released, defaults to None
     """
 
     def __init__(
@@ -325,6 +329,8 @@ class Matplotlib2DViewer:
         c_size_offset: float = 0.0,
         arrow_scale: float = 0.3,
         figure_size: tuple = (7, 7),
+        key_press_callback: Callable | None = None,
+        key_release_callback: Callable | None = None,
     ) -> None:
         # mover params
         self.num_movers = num_movers
@@ -380,6 +386,17 @@ class Matplotlib2DViewer:
         self.cs_offset = []
         self.arrows = []
         self.goals = []
+
+        # register key press/release event callback if existing
+        def register_key_event(event_type, callback):
+            if callback is None:
+                raise ValueError(f'Callback for {event_type} event is not defined.')
+            else:
+                # flush output to avoid buffering problems, then pass key (str) to user-defined callback
+                self.figure.canvas.mpl_connect(event_type, lambda event: (sys.stdout.flush(), callback(event.key)))
+
+        register_key_event('key_press_event', key_press_callback)
+        register_key_event('key_release_event', key_release_callback)
 
     def render(self, mover_qpos: np.ndarray, mover_qvel: np.ndarray, mover_goals: np.ndarray | None = None) -> None:
         """Render the next frame.
