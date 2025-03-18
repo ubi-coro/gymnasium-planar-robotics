@@ -387,7 +387,6 @@ class Matplotlib2DViewer:
         self.arrows = []
         self.goals = []
 
-        # register key press/release event callback if existing
         def register_key_event(event_type, callback):
             if callback is None:
                 raise ValueError(f'Callback for {event_type} event is not defined.')
@@ -395,8 +394,10 @@ class Matplotlib2DViewer:
                 # flush output to avoid buffering problems, then pass key (str) to user-defined callback
                 self.figure.canvas.mpl_connect(event_type, lambda event: (sys.stdout.flush(), callback(event.key)))
 
-        register_key_event('key_press_event', key_press_callback)
-        register_key_event('key_release_event', key_release_callback)
+        # register key press/release event callback if existing
+        if key_press_callback is not None and key_release_callback is not None:
+            register_key_event('key_press_event', key_press_callback)
+            register_key_event('key_release_event', key_release_callback)
 
     def render(self, mover_qpos: np.ndarray, mover_qvel: np.ndarray, mover_goals: np.ndarray | None = None) -> None:
         """Render the next frame.
