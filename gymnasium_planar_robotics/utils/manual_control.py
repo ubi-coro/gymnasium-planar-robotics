@@ -30,7 +30,7 @@ class ManualControl:
         elif 'right' in self.keys_pressed:
             self.current_acc[1] = self.ACCELERATION
 
-    def get_action(self) -> np.ndarray:
+    def get_action_from_keyboard(self) -> np.ndarray:
         # apply dynamics based on currently pressed keys
         self.apply_key_kinematics()
 
