@@ -362,50 +362,66 @@ class CustomTestingEnv(BasicPlanarRoboticsSingleAgentEnv):
         """Reset the start and goal positions of all movers and reload the model. It is also checked whether the start positions are
         collision-free (mover and wall collisions) and whether the new goals can be reached without mover or wall collisions.
 
-        :param options: not used in this environment
+        :param options: A dictionary containing optional parameters for resetting the environment. The following keys are supported:
+            - 'mover_pos': a numpy array of shape (num_movers, 2) specifying the start positions of the movers.
+            - 'goal_pos': a numpy array of shape (num_movers, 2) specifying the goal positions of the movers.
+        :raises ValueError: If user-defined positions are invalid (i.e., collisions are detected).
         """
-        # sample new mover start positions
+        # init new mover start positions
         start_qpos = np.zeros((self.num_movers, 7))
         start_qpos[:, 2] = self.initial_mover_zpos
         start_qpos[:, 3] = 1  # quaternion (1,0,0,0)
 
-        # ensure that the start positions are chosen such that there no wall or mover collisions
-        counter = 0
-        all_start_pos_valid = False
-        while not all_start_pos_valid:
-            counter += 1
-            if counter > 0 and counter % 100 == 0:
-                logger.warn(
-                    'Trying to find a collision-free configuration of start positions for all movers. '
-                    + f'No valid configuration found within {counter} trails. Consider choosing fewer movers or more tiles.'
-                )
+        def init_collision_check(start_qpos):
+            """Check if the start positions are collision-free, between movers and walls as well as between movers themselves.
 
-            start_qpos[:, :2] = self.np_random.uniform(low=self.min_xy_pos, high=self.max_xy_pos, size=(self.num_movers, 2))                # mover positions are set (randomly) here!
+            :param start_qpos: a numpy array of shape (num_movers, 7) containing the start positions of the movers
+            :return: True if the positions are collision-free, False otherwise
+            """
             # check wall collision
             pos_is_valid = self.qpos_is_valid(qpos=start_qpos, c_size=self.c_size, add_safety_offset=True)
             # check mover collision
             mover_collision = self.check_mover_collision(
                 mover_names=self.mover_names, c_size=self.c_size, add_safety_offset=True, mover_qpos=start_qpos
             )
-            if not mover_collision and pos_is_valid.all():
-                all_start_pos_valid = True
+            return not mover_collision and pos_is_valid.all()
 
-        # sample new goal positions
+        if options and 'mover_pos' in options:
+            # check and set user-defined start positions
+            assert(options['mover_pos'].shape == (self.num_movers, 2))
+            start_qpos[:, :2] = options['mover_pos']
+            if not init_collision_check(start_qpos):
+                raise ValueError("User-defined mover position invalid! Collision detected.")
+        else:
+            # randomly sample start positions
+            # ensure that the start positions are chosen such that there no wall or mover collisions
+            counter = 0
+            while True:
+                counter += 1
+                if counter > 0 and counter % 100 == 0:
+                    logger.warn(
+                        'Trying to find a collision-free configuration of start positions for all movers. '
+                        + f'No valid configuration found within {counter} trails. Consider choosing fewer movers or more tiles.'
+                    )
+
+                start_qpos[:, :2] = self.np_random.uniform(low=self.min_xy_pos, high=self.max_xy_pos, size=(self.num_movers, 2))
+                if init_collision_check(start_qpos):
+                    break
+
+        # init new mover start positions
         goal_qpos = np.zeros((self.num_movers, 7))
         goal_qpos[:, 2] = self.initial_mover_zpos
         goal_qpos[:, 3] = 1  # quaternion (1,0,0,0)
 
-        # ensure that all goal positions can be reached without wall and mover collisions
-        counter = 0
-        all_goal_pos_reachable, dist_goals_valid = False, False
-        while not all_goal_pos_reachable or not dist_goals_valid:
-            counter += 1
-            if counter > 0 and counter % 100 == 0:
-                logger.warn(
-                    'Trying to find valid goal positions for all movers. '
-                    + f'No valid configuration found within {counter} trails. Consider choosing fewer movers or more tiles.'
-                )
-            goal_qpos[:, :2] = self.np_random.uniform(low=self.min_xy_pos, high=self.max_xy_pos, size=(self.num_movers, 2))                 # goal positions are set (randomly) here!
+        def init_goal_check(goal_qpos):
+            """Check if the goal positions are valid and reachable without collisions and if the distance between any two goals
+            is greater than the minimum required distance.
+
+            :param goal_qpos: a numpy array of shape (num_movers, 7) containing the goal positions of the movers
+            :return: True if all goal positions are valid and reachable, False otherwise
+            """
+            all_goal_pos_reachable, dist_goals_valid = False, False
+
             goal_pos_reachable = self.qpos_is_valid(qpos=goal_qpos, c_size=self.c_size, add_safety_offset=True)
             all_goal_pos_reachable = np.sum(goal_pos_reachable) == self.num_movers
             if all_goal_pos_reachable:
@@ -417,8 +433,32 @@ class CustomTestingEnv(BasicPlanarRoboticsSingleAgentEnv):
                             break
                     if not dist_goals_valid:
                         break
+            
+            return all_goal_pos_reachable and dist_goals_valid
 
-        self.goals = goal_qpos[:, :2].copy()
+        if options and 'goal_pos' in options:
+            # check and set user-defined goal positions
+            assert(options['goal_pos'].shape == (self.num_movers, 2))
+            goal_qpos[:, :2] = options['goal_pos']
+            if not init_goal_check(goal_qpos):
+                raise ValueError("User-defined goal position invalid!")
+        else:
+            # randomly sample goal positions
+            # ensure that all goal positions can be reached without wall and mover collisions
+            counter = 0
+            while True:
+                counter += 1
+                if counter > 0 and counter % 100 == 0:
+                    logger.warn(
+                        'Trying to find valid goal positions for all movers. '
+                        + f'No valid configuration found within {counter} trails. Consider choosing fewer movers or more tiles.'
+                    )
+                
+                goal_qpos[:, :2] = self.np_random.uniform(low=self.min_xy_pos, high=self.max_xy_pos, size=(self.num_movers, 2))
+                if init_goal_check(goal_qpos):
+                    break
+
+        self.goals = goal_qpos[:, :2].copy()            
 
         # reload model with new start pos and goal pos
         self.reload_model(mover_start_xy_pos=start_qpos[:, :2], mover_goal_xy_pos=self.goals)
