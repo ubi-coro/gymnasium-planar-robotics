@@ -338,7 +338,7 @@ class Matplotlib2DViewer:
         self.mover_colors = mover_colors
         if len(self.mover_colors) < self.num_movers:
             raise ValueError('The number of specified mover colors does not match the number of movers.')
-        self.mover_controlled = 0      #TODO: add function for setting the controlled mover -> init with -1
+        self.mover_controlled = 0  #TODO: init with -1 when manual control switch is implemented
         # collision params
         self.c_shape = c_shape
         self.c_size = c_size
@@ -396,10 +396,22 @@ class Matplotlib2DViewer:
                 # flush output to avoid buffering problems, then pass key (str) to user-defined callback
                 self.figure.canvas.mpl_connect(event_type, lambda event: (sys.stdout.flush(), callback(event.key)))
 
+        #TODO: only for testing, proper implementation needed
+        def key_press_callback_wrapper(key: str):
+            # increment mover when 'm' is pressed
+            if key.lower() == 'm':
+                self.increment_controlled_mover()
+
+            key_press_callback(key)
+
         # register key press/release event callback if existing
         if key_press_callback is not None and key_release_callback is not None:
-            register_key_event('key_press_event', key_press_callback)
+            register_key_event('key_press_event', key_press_callback_wrapper)
             register_key_event('key_release_event', key_release_callback)
+
+    def increment_controlled_mover(self):
+        """Increment the index of the controlled mover. If the index exceeds the number of movers, it is reset to 0."""
+        self.mover_controlled = (self.mover_controlled + 1) % self.num_movers
 
     def render(self, mover_qpos: np.ndarray, mover_qvel: np.ndarray, mover_goals: np.ndarray | None = None) -> None:
         """Render the next frame.
