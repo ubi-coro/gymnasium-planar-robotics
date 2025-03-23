@@ -338,7 +338,8 @@ class Matplotlib2DViewer:
         self.mover_colors = mover_colors
         if len(self.mover_colors) < self.num_movers:
             raise ValueError('The number of specified mover colors does not match the number of movers.')
-        self.mover_controlled = 0  #TODO: init with -1 when manual control switch is implemented
+        self.manual_control_active = False
+        self.manual_control_idx = 0
         # collision params
         self.c_shape = c_shape
         self.c_size = c_size
@@ -401,6 +402,8 @@ class Matplotlib2DViewer:
             # increment mover when 'm' is pressed
             if key.lower() == 'm':
                 self.increment_controlled_mover()
+            if key.lower() == 'c':
+                self.toggle_manual_control()
 
             key_press_callback(key)
 
@@ -411,7 +414,12 @@ class Matplotlib2DViewer:
 
     def increment_controlled_mover(self):
         """Increment the index of the controlled mover. If the index exceeds the number of movers, it is reset to 0."""
-        self.mover_controlled = (self.mover_controlled + 1) % self.num_movers
+        if self.manual_control_active:
+            self.manual_control_idx = (self.manual_control_idx + 1) % self.num_movers
+
+    def toggle_manual_control(self):
+        """Toggle the manual control of movers (on/off)."""
+        self.manual_control_active = not self.manual_control_active
 
     def render(self, mover_qpos: np.ndarray, mover_qvel: np.ndarray, mover_goals: np.ndarray | None = None) -> None:
         """Render the next frame.
@@ -459,7 +467,7 @@ class Matplotlib2DViewer:
             self.movers.append(self.axs.add_patch(mover_rect))
 
             # mark currently controlled mover with a circle (-1 for no chosen/controlled mover)
-            if idx_mover == self.mover_controlled:
+            if self.manual_control_active and idx_mover == self.manual_control_idx:
                 marker = Circle(
                     (mover_qpos[idx_mover, 1], mover_qpos[idx_mover, 0]),
                     radius=0.07 * min(mover_drawn_dims),
