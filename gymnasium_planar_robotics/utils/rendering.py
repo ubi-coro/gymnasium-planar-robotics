@@ -338,6 +338,7 @@ class Matplotlib2DViewer:
         self.mover_colors = mover_colors
         if len(self.mover_colors) < self.num_movers:
             raise ValueError('The number of specified mover colors does not match the number of movers.')
+        self.mover_controlled = 0      #TODO: add function for setting the controlled mover -> init with -1
         # collision params
         self.c_shape = c_shape
         self.c_size = c_size
@@ -382,6 +383,7 @@ class Matplotlib2DViewer:
                     self.axs.add_patch(rect)
 
         self.movers = []
+        self.highlight_marker = None
         self.cs = []
         self.cs_offset = []
         self.arrows = []
@@ -414,8 +416,11 @@ class Matplotlib2DViewer:
             self.arrows[i].remove()
             if len(self.goals) > 0:
                 self.goals[i].remove()
+        if self.highlight_marker is not None:
+            self.highlight_marker.remove()
 
         self.movers = []
+        self.highlight_marker = None
         self.cs = []
         self.cs_offset = []
         self.arrows = []
@@ -425,10 +430,13 @@ class Matplotlib2DViewer:
             # we assume that the angles about the x and y axes are close to 0
             euler = rotations_utils.quat2euler(quat=mover_qpos[idx_mover, -4:])
 
+            # dimensions (width, height)) of the drawn mover rectangle
+            mover_drawn_dims = (self.mover_sizes[idx_mover, 1] * 2, self.mover_sizes[idx_mover, 0] * 2)
+
             mover_rect = Rectangle(
                 (mover_qpos[idx_mover, 1] - self.mover_sizes[idx_mover, 1], mover_qpos[idx_mover, 0] - self.mover_sizes[idx_mover, 0]),
-                width=self.mover_sizes[idx_mover, 1] * 2,
-                height=self.mover_sizes[idx_mover, 0] * 2,
+                width=mover_drawn_dims[0],
+                height=mover_drawn_dims[1],
                 angle=euler[-1] * (180 / np.pi),
                 rotation_point='center',
                 color=self.mover_colors[idx_mover],
@@ -438,6 +446,18 @@ class Matplotlib2DViewer:
             )
             self.movers.append(self.axs.add_patch(mover_rect))
 
+            # mark currently controlled mover with a circle (-1 for no chosen/controlled mover)
+            if idx_mover == self.mover_controlled:
+                marker = Circle(
+                    (mover_qpos[idx_mover, 1], mover_qpos[idx_mover, 0]),
+                    radius=0.07 * min(mover_drawn_dims),
+                    facecolor='white',
+                    edgecolor='black',
+                    linewidth=2,
+                    zorder=3,
+                )
+                self.highlight_marker = self.axs.add_patch(marker)
+            
             arrow = Arrow(
                 x=mover_qpos[idx_mover, 1],
                 y=mover_qpos[idx_mover, 0],
