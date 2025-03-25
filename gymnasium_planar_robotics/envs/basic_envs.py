@@ -81,6 +81,12 @@ class BasicPlanarRoboticsEnv:
 
                 Default: 0.1 [kg]
 
+        - material (str | list[str]): Material name to apply to the mover. Can be specified as:
+            - Single string: Same material for all movers
+            - List of strings: Individual materials for each mover
+
+            Default: "gray" for movers without goals, color-coded materials for movers with goals
+
         Note: Custom mesh STL files must have their origin at the mover's center.
     :param initial_mover_zpos: the initial distance between the bottom of the mover and the top of a tile, defaults to 0.005 [m]
     :param table_height: the height of a table on which the tiles are placed, defaults to 0.4 [m]
@@ -218,6 +224,7 @@ class BasicPlanarRoboticsEnv:
         self.mover_size = mover_params.get('size', np.array([0.155 / 2, 0.155 / 2, 0.012 / 2]))
         self.mover_mass = mover_params.get('mass', 1.24)
         self.mover_shape = mover_params.get('shape', 'box')
+        self.mover_material = mover_params.get('material')
 
         mover_mesh = mover_params.get('mesh', {})
         self.mover_mesh_mover_stl_path = self._resolve_mesh_path(mover_mesh.get('mover_stl_path', 'beckhoff_apm4330_mover'))
@@ -1019,14 +1026,17 @@ class BasicPlanarRoboticsEnv:
                 mover_mass = self.mover_mass
 
             is_obstacle = idx_mover >= num_goal_movers
-            # choose color
-            if is_obstacle:
-                material_str = 'gray'
+
+            if isinstance(self.mover_material, list):
+                material_str = self.mover_material[min(idx_mover, len(self.mover_material) - 1)]
+            elif isinstance(self.mover_material, str):
+                material_str = self.mover_material
             else:
-                if idx_mover <= (len(material_str_list) - 1):
-                    material_str = material_str_list[idx_mover]
+                # choose color
+                if is_obstacle:
+                    material_str = 'gray'
                 else:
-                    material_str = material_str_list[-1]
+                    material_str = material_str_list[min(idx_mover, len(material_str_list) - 1)]
 
             if mover_shape == 'box' or mover_shape == 'mesh':
                 z_pos = self.initial_mover_zpos + self.resolved_mover_size[idx_mover, 2]
