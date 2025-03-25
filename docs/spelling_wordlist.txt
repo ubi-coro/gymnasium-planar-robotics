@@ -1,4 +1,7 @@
 acc
+apm
+Beckhoff
+beckhoff
 changelog
 DoF
 env
@@ -12,7 +15,9 @@ mjObj
 mjOBJ
 mjtObj
 mujoco
+ndarray
 num
+numpy
 offscreen
 outworldbody
 params
@@ -26,6 +31,7 @@ renderer
 renderers
 rgb
 rng
+stl
 str
 timestep
 translational
