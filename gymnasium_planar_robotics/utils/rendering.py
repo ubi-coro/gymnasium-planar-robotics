@@ -387,19 +387,9 @@ class Matplotlib2DViewer:
         self.arrows = []
         self.goals = []
 
-        #TODO: only for testing, proper implementation needed
-        def key_press_callback_wrapper(event):
-            # increment mover when 'm' is pressed
-            if event.key.lower() == 'm':
-                self.increment_controlled_mover()
-            if event.key.lower() == 'c':
-                self.toggle_manual_control()
-
-            self.manual_controller.on_key_press(event)
-
          # register key press/release event callbacks
-        self.manual_controller = ManualControl()
-        self.figure.canvas.mpl_connect('key_press_event', key_press_callback_wrapper)
+        self.manual_controller = ManualControl(self)
+        self.figure.canvas.mpl_connect('key_press_event', self.manual_controller.on_key_press)
         self.figure.canvas.mpl_connect('key_release_event', self.manual_controller.on_key_release)
         
 
@@ -561,22 +551,33 @@ class ManualControl:
 
     ACCELERATION = 5.0
 
-    def __init__(self) -> None:
+    # pass a reference of Matplotlib2DViewer to access its methods
+    def __init__(self, viewer: 'Matplotlib2DViewer') -> None:
+        self.viewer = viewer
         self.keys_pressed = set()
         self.reset_kinematics()
 
     def reset_kinematics(self):
         self.current_acc = np.array([0.0, 0.0], dtype=np.float64)
 
-    # callback for key presses (add key to set)
+    # callback for key presses (add key to set or react to specific keys)
     def on_key_press(self, event):
         sys.stdout.flush()          # flush output to avoid buffering problems
-        self.keys_pressed.add(event.key)
 
+        # for actions applied while the key is held
+        self.keys_pressed.add(event.key.lower())
+
+        # for actions triggered once on key press
+        match event.key.lower():
+            case 'm':
+                self.viewer.increment_controlled_mover()
+            case 'c':
+                self.viewer.toggle_manual_control()
+        
     # callback for key releases (remove key from set)
     def on_key_release(self, event):
         sys.stdout.flush()          # flush output to avoid buffering problems
-        self.keys_pressed.discard(event.key)
+        self.keys_pressed.discard(event.key.lower())
 
     def apply_key_kinematics(self):
         # apply dynamics based on currently pressed keys

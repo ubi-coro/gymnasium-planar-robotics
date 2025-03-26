@@ -90,7 +90,7 @@ import gymnasium as gym
 from gymnasium import logger
 import mujoco
 from gymnasium_planar_robotics import BasicPlanarRoboticsSingleAgentEnv
-from gymnasium_planar_robotics.utils import mujoco_utils, manual_control
+from gymnasium_planar_robotics.utils import mujoco_utils
 from collections import OrderedDict
 from gymnasium_planar_robotics import Matplotlib2DViewer
 
