@@ -7,8 +7,9 @@ import mujoco.viewer
 from gymnasium.envs.mujoco.mujoco_rendering import MujocoRenderer, BaseRender, OffScreenViewer, WindowViewer
 from mujoco import MjData, MjModel
 import matplotlib.pyplot as plt
-from gymnasium_planar_robotics.utils import manual_control, rotations_utils
+from gymnasium_planar_robotics.utils import rotations_utils
 from matplotlib.patches import Rectangle, Circle, Arrow
+import sys
 
 
 class MujocoWindowViewer(WindowViewer):
@@ -397,7 +398,7 @@ class Matplotlib2DViewer:
             self.manual_controller.on_key_press(event)
 
          # register key press/release event callbacks
-        self.manual_controller = manual_control.ManualControl()
+        self.manual_controller = ManualControl()
         self.figure.canvas.mpl_connect('key_press_event', key_press_callback_wrapper)
         self.figure.canvas.mpl_connect('key_release_event', self.manual_controller.on_key_release)
         
@@ -553,3 +554,44 @@ class Matplotlib2DViewer:
     def close(self):
         """Close the figure."""
         plt.close(self.figure)
+
+
+class ManualControl:
+    #TODO: documentation
+
+    ACCELERATION = 5.0
+
+    def __init__(self) -> None:
+        self.keys_pressed = set()
+        self.reset_kinematics()
+
+    def reset_kinematics(self):
+        self.current_acc = np.array([0.0, 0.0], dtype=np.float64)
+
+    # callback for key presses (add key to set)
+    def on_key_press(self, event):
+        sys.stdout.flush()          # flush output to avoid buffering problems
+        self.keys_pressed.add(event.key)
+
+    # callback for key releases (remove key from set)
+    def on_key_release(self, event):
+        sys.stdout.flush()          # flush output to avoid buffering problems
+        self.keys_pressed.discard(event.key)
+
+    def apply_key_kinematics(self):
+        # apply dynamics based on currently pressed keys
+        if 'up' in self.keys_pressed:
+            self.current_acc[0] = -self.ACCELERATION
+        elif 'down' in self.keys_pressed:
+            self.current_acc[0] = self.ACCELERATION
+        
+        if 'left' in self.keys_pressed:
+            self.current_acc[1] = -self.ACCELERATION
+        elif 'right' in self.keys_pressed:
+            self.current_acc[1] = self.ACCELERATION
+
+    def get_action_manual(self) -> np.ndarray:
+        # apply dynamics based on currently pressed keys
+        self.apply_key_kinematics()
+
+        return self.current_acc.copy()
