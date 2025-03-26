@@ -166,7 +166,6 @@ class CustomTestingEnv(BasicPlanarRoboticsSingleAgentEnv):
         self,
         layout_tiles: np.ndarray,
         num_movers: int,
-        manual_controller: manual_control.ManualControl,        # CUSTOM
         show_2D_plot: bool,
         mover_colors_2D_plot: list[str] | None = None,
         tile_params: dict[str, any] | None = None,
@@ -292,8 +291,6 @@ class CustomTestingEnv(BasicPlanarRoboticsSingleAgentEnv):
                 c_size_offset=self.c_size_offset,
                 arrow_scale=0.2,
                 figure_size=(9, 9),
-                key_press_callback=manual_controller.on_key_press,      # CUSTOM
-                key_release_callback=manual_controller.on_key_release,  # CUSTOM
             )
     
     def _custom_xml_string_callback(self, custom_model_xml_strings: dict | None) -> dict[str, str]:

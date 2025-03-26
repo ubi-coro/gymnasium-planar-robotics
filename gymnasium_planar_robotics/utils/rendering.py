@@ -7,10 +7,8 @@ import mujoco.viewer
 from gymnasium.envs.mujoco.mujoco_rendering import MujocoRenderer, BaseRender, OffScreenViewer, WindowViewer
 from mujoco import MjData, MjModel
 import matplotlib.pyplot as plt
-from gymnasium_planar_robotics.utils import rotations_utils
+from gymnasium_planar_robotics.utils import manual_control, rotations_utils
 from matplotlib.patches import Rectangle, Circle, Arrow
-import sys
-from typing import Callable
 
 
 class MujocoWindowViewer(WindowViewer):
@@ -329,8 +327,6 @@ class Matplotlib2DViewer:
         c_size_offset: float = 0.0,
         arrow_scale: float = 0.3,
         figure_size: tuple = (7, 7),
-        key_press_callback: Callable | None = None,
-        key_release_callback: Callable | None = None,
     ) -> None:
         # mover params
         self.num_movers = num_movers
@@ -390,27 +386,21 @@ class Matplotlib2DViewer:
         self.arrows = []
         self.goals = []
 
-        def register_key_event(event_type, callback):
-            if callback is None:
-                raise ValueError(f'Callback for {event_type} event is not defined.')
-            else:
-                # flush output to avoid buffering problems, then pass key (str) to user-defined callback
-                self.figure.canvas.mpl_connect(event_type, lambda event: (sys.stdout.flush(), callback(event.key)))
-
         #TODO: only for testing, proper implementation needed
-        def key_press_callback_wrapper(key: str):
+        def key_press_callback_wrapper(event):
             # increment mover when 'm' is pressed
-            if key.lower() == 'm':
+            if event.key.lower() == 'm':
                 self.increment_controlled_mover()
-            if key.lower() == 'c':
+            if event.key.lower() == 'c':
                 self.toggle_manual_control()
 
-            key_press_callback(key)
+            self.manual_controller.on_key_press(event)
 
-        # register key press/release event callback if existing
-        if key_press_callback is not None and key_release_callback is not None:
-            register_key_event('key_press_event', key_press_callback_wrapper)
-            register_key_event('key_release_event', key_release_callback)
+         # register key press/release event callbacks
+        self.manual_controller = manual_control.ManualControl()
+        self.figure.canvas.mpl_connect('key_press_event', key_press_callback_wrapper)
+        self.figure.canvas.mpl_connect('key_release_event', self.manual_controller.on_key_release)
+        
 
     def increment_controlled_mover(self):
         """Increment the index of the controlled mover. If the index exceeds the number of movers, it is reset to 0."""
