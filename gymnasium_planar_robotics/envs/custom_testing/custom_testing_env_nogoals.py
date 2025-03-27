@@ -273,9 +273,6 @@ class CustomTestingEnv(BasicPlanarRoboticsSingleAgentEnv):
             # self.c_shape == 'box'
             self.min_goal_dist = 2 * np.linalg.norm(self.c_size + self.c_size_offset, ord=2)
 
-
-        # CUSTOM: MANUAL MODE / HANDMODE
-
         # 2D plot
         if self.show_2D_plot:
             self.matplotlib_2D_viewer = Matplotlib2DViewer(

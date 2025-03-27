@@ -273,9 +273,6 @@ class CustomTestingEnv(BasicPlanarRoboticsSingleAgentEnv):
             # self.c_shape == 'box'
             self.min_goal_dist = 2 * np.linalg.norm(self.c_size + self.c_size_offset, ord=2)
 
-
-        # CUSTOM: MANUAL MODE / HANDMODE
-
         # 2D plot
         if self.show_2D_plot:
             self.matplotlib_2D_viewer = Matplotlib2DViewer(
@@ -405,7 +402,7 @@ class CustomTestingEnv(BasicPlanarRoboticsSingleAgentEnv):
                 if init_collision_check(start_qpos):
                     break
 
-        # init new mover start positions
+        # init new mover goal positions
         goal_qpos = np.zeros((self.num_movers, 7))
         goal_qpos[:, 2] = self.initial_mover_zpos
         goal_qpos[:, 3] = 1  # quaternion (1,0,0,0)
@@ -455,7 +452,7 @@ class CustomTestingEnv(BasicPlanarRoboticsSingleAgentEnv):
                 if init_goal_check(goal_qpos):
                     break
 
-        self.goals = goal_qpos[:, :2].copy()            
+        self.goals = goal_qpos[:, :2].copy()
 
         # reload model with new start pos and goal pos
         self.reload_model(mover_start_xy_pos=start_qpos[:, :2], mover_goal_xy_pos=self.goals)
@@ -576,11 +573,6 @@ class CustomTestingEnv(BasicPlanarRoboticsSingleAgentEnv):
 
         assert reward.shape == (batch_size,)
         return reward if batch_size > 1 else reward[0]
-
-        # CUSTOM: always return zero(s)
-        #reward = np.zeros(batch_size, dtype=np.float64)
-        #assert reward.shape == (batch_size,)
-        #return reward if batch_size > 1 else 0.0
 
     def _get_obs(self) -> dict[str, np.ndarray] | np.ndarray:
         """Return an observation based on the current state of the environment.
