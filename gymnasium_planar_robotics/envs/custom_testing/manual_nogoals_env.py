@@ -5,34 +5,12 @@
 # Goals were removed to test manual control              #
 ##########################################################
 
-"""The ``BenchmarkPlanningEnv`` is a simple motion planning environment that should be understood as an example of how motion planning
-with planar motor systems can look like. This environment is therefore intended for parameter or algorithm tests.
+"""This is a significantly shortened version of ``BenchmarkPlanningEnv`` used for testing movement, dynamics, collisions and
+the manual keyboard controller. The environment is a simple planning environment without goals, proper reward computation,
+observation etc.
 
-The aim is to learn to move all movers from random (x,y) start positions to variable (x,y) goal positions without collisions
-by specifying either the jerk or the acceleration. In this environment, positions, velocities, accelerations, and jerks have
-the units m, m/s, m/s² and m/s³, respectively.
-
-Observation Space
------------------
-
-The observation space of this environment is a dictionary containing the following keys and values:
-
-+---------------+------------------------------------------------------------------------------------------------------------+
-|     key       |                                          value                                                             |
-+===============+============================================================================================================+
-| observation   | - if ``learn_jerk=True``:                                                                                  |
-|               |   a numpy array of shape (num_movers*2*2,) containing the (x,y)-velocities and (x,y)-accelerations of each |
-|               |   mover ((x,y)-velo mover 1, (x,y)-velo mover 2, ..., (x,y)-acc mover 1, (x,y)-acc mover 2, ...)           |
-|               | - if ``learn_jerk=False``:                                                                                 |
-|               |   a numpy array of shape (num_movers*2,) containing the (x,y)-velocities and of each mover                 |
-|               |   ((x,y)-velo mover 1, (x,y)-velo mover 2, ...)                                                            |
-+---------------+------------------------------------------------------------------------------------------------------------+
-| achieved_goal | a numpy array of shape (num_movers*2,) containing the current (x,y)-positions of all movers w.r.t. the     |
-|               | frame ((x,y)-pos mover 1, (x,y)-pos mover 2, ...)                                                          |
-+---------------+------------------------------------------------------------------------------------------------------------+
-| desired_goal  | a numpy array of shape (num_movers*2,) containing the desired (x,y)-positions of all movers w.r.t the      |
-|               | base frame ((x,y) goal pos mover 1, (x,y) goal pos mover 2, ...)                                           |
-+---------------+------------------------------------------------------------------------------------------------------------+
+Movers can be moved from random (x,y) or user-defined start positions. In this environment, positions, velocities,
+accelerations, and jerks have the units m, m/s, m/s² and m/s³, respectively.
 
 Action Space
 ------------
@@ -230,28 +208,6 @@ class CustomTestingEnv(BasicPlanarRoboticsSingleAgentEnv):
         self.mover_actuator_y_names = mujoco_utils.get_mujoco_type_names(
             self.model, obj_type='actuator', name_pattern='mover_actuator_y'
         )
-
-        # observation space
-        # observation:
-        #   - velocities in x and y direction of each mover
-        #   - accelerations in x and y direction of each mover if learn_jerk = True
-        # achieved_goal:
-        #   the current (x,y)-position of each mover
-        # desired_goal:
-        #   the (x,y) goal position of each mover
-        # low_goals = np.zeros((self.num_movers * 2,))
-        # high_goals = np.array(
-        #     [np.max(self.x_pos_tiles) + (self.tile_size[0] / 2), np.max(self.y_pos_tiles) + (self.tile_size[1] / 2)] * self.num_movers
-        # )
-        # self.observation_space = gym.spaces.Dict(
-        #     {
-        #         'observation': gym.spaces.Box(
-        #             low=-np.inf, high=np.inf, shape=(self.num_movers * (1 + int(self.learn_jerk)) * 2,), dtype=np.float64
-        #         ),
-        #         'achieved_goal': gym.spaces.Box(low=low_goals, high=high_goals, dtype=np.float64),
-        #         'desired_goal': gym.spaces.Box(low=low_goals, high=high_goals, dtype=np.float64),
-        #     }
-        # )
 
         # action space
         as_low = -self.j_max if self.learn_jerk else -self.a_max
