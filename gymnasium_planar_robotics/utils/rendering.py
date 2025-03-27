@@ -547,7 +547,14 @@ class Matplotlib2DViewer:
 
 
 class ManualControl:
-    #TODO: documentation
+    """
+    A class to handle manual control of movers in the Matplotlib2DViewer.
+
+    This class provides key press and release event callbacks to control the movement of movers manually.
+    It interacts with the Matplotlib2DViewer to update the controlled mover and toggle manual control mode.
+
+    :param viewer: An instance of Matplotlib2DViewer to interact with and control.
+    """
 
     ACCELERATION = 5.0
 
@@ -558,10 +565,14 @@ class ManualControl:
         self.reset_kinematics()
 
     def reset_kinematics(self):
+        """Reset the current acceleration values to zero. """
         self.current_acc = np.array([0.0, 0.0], dtype=np.float64)
 
-    # callback for key presses (add key to set or react to specific keys)
     def on_key_press(self, event):
+        """Callback for key press events. Adds the pressed key to the set of active keys and triggers specific actions.
+
+        :param event: The key press event containing information about the pressed key.
+        """
         sys.stdout.flush()          # flush output to avoid buffering problems
 
         # for actions applied while the key is held
@@ -574,13 +585,18 @@ class ManualControl:
             case 'c':
                 self.viewer.toggle_manual_control()
         
-    # callback for key releases (remove key from set)
     def on_key_release(self, event):
+        """Callback for key release events. Removes the released key from the set of active keys.
+
+        :param event: The key release event containing information about the released key.
+        """
         sys.stdout.flush()          # flush output to avoid buffering problems
         self.keys_pressed.discard(event.key.lower())
 
     def apply_key_kinematics(self):
-        # apply dynamics based on currently pressed keys
+        """Apply kinematic updates based on the currently pressed keys.
+        Updates the acceleration values for the controlled mover.
+        """
         if 'up' in self.keys_pressed:
             self.current_acc[0] = -self.ACCELERATION
         elif 'down' in self.keys_pressed:
@@ -592,7 +608,10 @@ class ManualControl:
             self.current_acc[1] = self.ACCELERATION
 
     def get_action_manual(self) -> np.ndarray:
-        # apply dynamics based on currently pressed keys
+        """Get the current acceleration values based on the pressed keys.
+
+        :return: A numpy array containing the current acceleration values [x_acc, y_acc].
+        """
         self.apply_key_kinematics()
 
         return self.current_acc.copy()
