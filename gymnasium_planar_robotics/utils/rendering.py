@@ -608,10 +608,27 @@ class ManualControl:
             self.current_acc[1] = self.ACCELERATION
 
     def get_action_manual(self) -> np.ndarray:
-        """Get the current acceleration values based on the pressed keys.
+        """Get the current acceleration values based on the pressed keys and the current mover index.
 
-        :return: A numpy array containing the current acceleration values [x_acc, y_acc].
+        :return: A numpy array containing the current acceleration values and the index of the currently controlled mover.
         """
-        self.apply_key_kinematics()
+        if self.viewer.manual_control_active:
+            self.apply_key_kinematics()
+                
+        return self.current_acc.copy(), self.viewer.manual_control_idx
+    
+    def overwrite_action(self, action_input: np.ndarray) -> np.ndarray:
+        """Overwrite the action for the specified mover with the manually controlled acceleration values.
 
-        return self.current_acc.copy()
+        :param action: The action array to be overwritten.
+        :param mover_idx: The index of the mover to be controlled.
+        :return: The action array with the manually controlled acceleration values for the controlled mover (if existing).
+        """
+        assert(len(action_input) == 2 * self.viewer.num_movers)
+        if self.viewer.manual_control_active:
+            action_output = action_input.copy()     # copy to avoid changing the original array
+            manual_action, mover_idx = self.get_action_manual()
+            action_output[mover_idx*2:(mover_idx+1)*2] = manual_action
+            return action_output
+        else:
+            return action_input
