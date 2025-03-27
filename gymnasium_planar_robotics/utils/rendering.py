@@ -389,8 +389,8 @@ class Matplotlib2DViewer:
 
          # register key press/release event callbacks
         self.manual_controller = ManualControl(self)
-        self.figure.canvas.mpl_connect('key_press_event', self.manual_controller.on_key_press)
-        self.figure.canvas.mpl_connect('key_release_event', self.manual_controller.on_key_release)
+        self.figure.canvas.mpl_connect('key_press_event', self.manual_controller._on_key_press)
+        self.figure.canvas.mpl_connect('key_release_event', self.manual_controller._on_key_release)
         
 
     def increment_controlled_mover(self):
@@ -564,11 +564,7 @@ class ManualControl:
         self.keys_pressed = set()
         self.reset_kinematics()
 
-    def reset_kinematics(self):
-        """Reset the current acceleration values to zero. """
-        self.current_acc = np.array([0.0, 0.0], dtype=np.float64)
-
-    def on_key_press(self, event):
+    def _on_key_press(self, event):
         """Callback for key press events. Adds the pressed key to the set of active keys and triggers specific actions.
 
         :param event: The key press event containing information about the pressed key.
@@ -580,18 +576,22 @@ class ManualControl:
 
         # for actions triggered once on key press
         match event.key.lower():
-            case 'm':
+            case 'm':   # increment index of currently controlled mover
                 self.viewer.increment_controlled_mover()
-            case 'c':
+            case 'c':   # toggle manual control (on/off)
                 self.viewer.toggle_manual_control()
         
-    def on_key_release(self, event):
+    def _on_key_release(self, event):
         """Callback for key release events. Removes the released key from the set of active keys.
 
         :param event: The key release event containing information about the released key.
         """
         sys.stdout.flush()          # flush output to avoid buffering problems
         self.keys_pressed.discard(event.key.lower())
+
+    def reset_kinematics(self):
+        """Reset the current acceleration values to zero. """
+        self.current_acc = np.array([0.0, 0.0], dtype=np.float64)
 
     def apply_key_kinematics(self):
         """Apply kinematic updates based on the currently pressed keys.
