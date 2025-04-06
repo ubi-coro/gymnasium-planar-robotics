@@ -606,6 +606,8 @@ class ManualControl:
         """Apply kinematic updates based on the currently pressed keys.
         Updates the acceleration values for the controlled mover.
         """
+        self.current_acc = np.zeros_like(self.current_acc)
+
         if 'up' in self.keys_pressed:
             self.current_acc[0] = -self.ACCELERATION
         elif 'down' in self.keys_pressed:
