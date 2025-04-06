@@ -391,7 +391,17 @@ class Matplotlib2DViewer:
         self.manual_controller = ManualControl(self)
         self.figure.canvas.mpl_connect('key_press_event', self.manual_controller._on_key_press)
         self.figure.canvas.mpl_connect('key_release_event', self.manual_controller._on_key_release)
-        
+
+        # display controls legend next to the plot
+        controls_legend_text = """
+            CONTROLS
+            
+            C:           toggle controls
+            M:          next mover
+            ←→↑↓:  mover direction
+        """
+        self.figure.text(-0.05, 0.5, controls_legend_text, fontsize=10, ha='left', va='center')
+        plt.subplots_adjust(left=0.3)   # only works if plt.tight_layout() is not set
 
     def increment_controlled_mover(self):
         """Increment the index of the controlled mover. If the index exceeds the number of movers, it is reset to 0."""
@@ -537,7 +547,6 @@ class Matplotlib2DViewer:
                 )[0]
                 self.goals.append(goal)
 
-        plt.tight_layout()
         plt.show(block=False)
         plt.pause(0.0001)
 
