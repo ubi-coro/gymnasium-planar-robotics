@@ -8,7 +8,8 @@ from gymnasium.envs.mujoco.mujoco_rendering import MujocoRenderer, BaseRender, O
 from mujoco import MjData, MjModel
 import matplotlib.pyplot as plt
 from gymnasium_planar_robotics.utils import rotations_utils
-from matplotlib.patches import Rectangle, Circle, Arrow
+from matplotlib.collections import PatchCollection
+from matplotlib.patches import Annulus, Arrow, Circle, Rectangle
 import sys
 
 
@@ -381,7 +382,7 @@ class Matplotlib2DViewer:
                     self.axs.add_patch(rect)
 
         self.movers = []
-        self.highlight_marker = None
+        self.highlight_patches = None
         self.cs = []
         self.cs_offset = []
         self.arrows = []
@@ -420,6 +421,53 @@ class Matplotlib2DViewer:
         :param mover_goals: None or a numpy array of shape (num_movers,2) containing the (x,y) goal positions of each mover, defaults
             to None. If set to None, no goals are displayed.
         """
+
+        def draw_steering_wheel(mover_x: float, mover_y: float, inscribe_span: float) -> PatchCollection:
+            """
+            Draw a steering wheel composed of multiple patches.
+
+            :param mover_x: The x-coordinate of the steering wheel's center.
+            :param mover_y: The y-coordinate of the steering wheel's center.
+            :param inscribe_span: The diameter of the inscribed circle for the steering wheel.
+            :return: A PatchCollection containing the steering wheel components.
+            """
+            if inscribe_span <= 0:
+                raise ValueError("inscribe_span must be a positive value.")
+    
+            patches = []
+
+            line_width = 2
+            r_outer = inscribe_span * 0.5 - 0.008    # compensate line width
+            ring_thick = 0.015
+            r_inner = r_outer - ring_thick
+            bars_width = ring_thick * 0.7
+            
+            # inner circle (background)
+            inner_circle = Circle((mover_x, mover_y), radius=r_outer - ring_thick, facecolor='white', linewidth=0)
+            patches.append(inner_circle)
+
+            # vertical bar (spoke)
+            vertical_bar = Rectangle((mover_x - 0.5 * bars_width, mover_y + r_inner), width=bars_width, height=-r_inner,
+                                     edgecolor='black', facecolor='darkgray')
+            patches.append(vertical_bar)
+
+            # horizontal bar (spoke)
+            horizontal_bar = Rectangle((mover_x + r_inner, mover_y - 0.5 * bars_width), width=2 * -r_inner,
+                                       height=bars_width, edgecolor='black', facecolor='darkgray')
+            patches.append(horizontal_bar)
+
+            # outer circle (grip area)
+            outer_circle = Annulus((mover_x, mover_y), r=r_outer, width=ring_thick,
+                                   edgecolor='black', facecolor='lightgray', linewidth=line_width)
+            patches.append(outer_circle)
+
+            # center circle (hub)
+            center_circle = Circle((mover_x, mover_y), radius=ring_thick, edgecolor='black', facecolor='gray', linewidth=line_width)
+            patches.append(center_circle)
+
+            # create a PatchCollection to avoid individual handling of patches
+            return PatchCollection(patches, match_original=True, zorder=3)
+
         for i in range(0, len(self.movers)):
             self.movers[i].remove()
             self.cs[i].remove()
@@ -427,11 +475,11 @@ class Matplotlib2DViewer:
             self.arrows[i].remove()
             if len(self.goals) > 0:
                 self.goals[i].remove()
-        if self.highlight_marker is not None:
-            self.highlight_marker.remove()
+        if self.highlight_patches is not None:  # highlighting controller mover
+            self.highlight_patches.remove()
+            self.highlight_patches = None
 
         self.movers = []
-        self.highlight_marker = None
         self.cs = []
         self.cs_offset = []
         self.arrows = []
@@ -450,24 +498,21 @@ class Matplotlib2DViewer:
                 height=mover_drawn_dims[1],
                 angle=euler[-1] * (180 / np.pi),
                 rotation_point='center',
-                color=self.mover_colors[idx_mover],
+                facecolor=self.mover_colors[idx_mover],
                 alpha=0.9,
                 fill=True,
                 zorder=2,
             )
             self.movers.append(self.axs.add_patch(mover_rect))
 
-            # mark currently controlled mover with a circle (-1 for no chosen/controlled mover)
+            # draw custom pattern (steering wheel) to highlight currently controlled mover
             if self.manual_control_active and idx_mover == self.manual_control_idx:
-                marker = Circle(
-                    (mover_qpos[idx_mover, 1], mover_qpos[idx_mover, 0]),
-                    radius=0.07 * min(mover_drawn_dims),
-                    facecolor='white',
-                    edgecolor='black',
-                    linewidth=2,
-                    zorder=3,
+                self.highlight_patches = draw_steering_wheel(
+                    mover_x=mover_qpos[idx_mover, 1],
+                    mover_y=mover_qpos[idx_mover, 0],
+                    inscribe_span=min(mover_drawn_dims),
                 )
-                self.highlight_marker = self.axs.add_patch(marker)
+                self.axs.add_collection(self.highlight_patches)
             
             arrow = Arrow(
                 x=mover_qpos[idx_mover, 1],
