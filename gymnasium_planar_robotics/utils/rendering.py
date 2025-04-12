@@ -489,7 +489,7 @@ class Matplotlib2DViewer:
             # we assume that the angles about the x and y axes are close to 0
             euler = rotations_utils.quat2euler(quat=mover_qpos[idx_mover, -4:])
 
-            # dimensions (width, height)) of the drawn mover rectangle
+            # dimensions (width, height) of the drawn mover rectangle
             mover_drawn_dims = (self.mover_sizes[idx_mover, 1] * 2, self.mover_sizes[idx_mover, 0] * 2)
 
             mover_rect = Rectangle(
@@ -649,7 +649,11 @@ class ManualControl:
 
     def apply_key_kinematics(self):
         """Apply kinematic updates based on the currently pressed keys.
-        Updates the acceleration values for the controlled mover.
+        Updates the acceleration values for the controlled mover:
+            - 'up': Negative acceleration along the x-axis (move upward).
+            - 'down': Positive acceleration along the x-axis (move downward).
+            - 'left': Negative acceleration along the y-axis (move leftward).
+            - 'right': Positive acceleration along the y-axis (move rightward).
         """
         self.current_acc = np.zeros_like(self.current_acc)
 
@@ -665,6 +669,7 @@ class ManualControl:
 
     def get_action_manual(self) -> np.ndarray:
         """Get the current acceleration values based on the pressed keys and the current mover index.
+        If manual control is inactive, the acceleration values remain unchanged.
 
         :return: A numpy array containing the current acceleration values and the index of the currently controlled mover.
         """
@@ -676,9 +681,8 @@ class ManualControl:
     def overwrite_action(self, action_input: np.ndarray) -> np.ndarray:
         """Overwrite the action for the specified mover with the manually controlled acceleration values.
 
-        :param action: The action array to be overwritten.
-        :param mover_idx: The index of the mover to be controlled.
-        :return: The action array with the manually controlled acceleration values for the controlled mover (if existing).
+        :param action_input: The action array to be overwritten.
+        :return: The action array with the manually controlled acceleration values for the controlled mover (if manual control is active).
         """
         assert(len(action_input) == 2 * self.viewer.num_movers)
         if self.viewer.manual_control_active:
