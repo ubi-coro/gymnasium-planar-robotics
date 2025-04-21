@@ -1,6 +1,13 @@
 Changelog
 =========
 
+Release v1.0.4 (2025-04-21)
+---------------------------
+
+General
+^^^^^^^
+1. Add the ``ManualControl`` utility that enables users to manually control movers in the ``Matplotlib2DViewer`` using keyboard inputs.
+
 Release v1.0.3 (2025-01-14)
 ---------------------------
 

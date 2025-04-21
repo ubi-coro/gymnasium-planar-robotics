@@ -8,7 +8,9 @@ from gymnasium.envs.mujoco.mujoco_rendering import MujocoRenderer, BaseRender, O
 from mujoco import MjData, MjModel
 import matplotlib.pyplot as plt
 from gymnasium_planar_robotics.utils import rotations_utils
-from matplotlib.patches import Rectangle, Circle, Arrow
+from matplotlib.collections import PatchCollection
+from matplotlib.patches import Annulus, Arrow, Circle, Rectangle
+import sys
 
 
 class MujocoWindowViewer(WindowViewer):
@@ -309,6 +311,8 @@ class Matplotlib2DViewer:
     :param arrow_scale: the scaling factor of the arrow length, which displays the current (x,y)-velocity of a mover, defaults
         to 0.3
     :param figure_size: the size of the matplotlib figure, defaults to (7,7)
+    :param key_press_callback: a callback function that is called when a key is pressed, defaults to None
+    :param key_release_callback: a callback function that is called when a key is released, defaults to None
     """
 
     def __init__(
@@ -332,6 +336,8 @@ class Matplotlib2DViewer:
         self.mover_colors = mover_colors
         if len(self.mover_colors) < self.num_movers:
             raise ValueError('The number of specified mover colors does not match the number of movers.')
+        self.manual_control_active = False
+        self.manual_control_idx = 0
         # collision params
         self.c_shape = c_shape
         self.c_size = c_size
@@ -376,10 +382,36 @@ class Matplotlib2DViewer:
                     self.axs.add_patch(rect)
 
         self.movers = []
+        self.highlight_patches = None
         self.cs = []
         self.cs_offset = []
         self.arrows = []
         self.goals = []
+
+        # register key press/release event callbacks
+        self.manual_controller = ManualControl(self)
+        self.figure.canvas.mpl_connect('key_press_event', self.manual_controller._on_key_press)
+        self.figure.canvas.mpl_connect('key_release_event', self.manual_controller._on_key_release)
+
+        # display controls legend next to the plot
+        controls_legend_text = """
+            CONTROLS
+            
+            C:           toggle controls
+            M:          next mover
+            ←→↑↓:  mover direction
+        """
+        self.figure.text(-0.05, 0.5, controls_legend_text, fontsize=10, ha='left', va='center')
+        plt.subplots_adjust(left=0.3)   # only works if plt.tight_layout() is not set
+
+    def increment_controlled_mover(self):
+        """Increment the index of the controlled mover. If the index exceeds the number of movers, it is reset to 0."""
+        if self.manual_control_active:
+            self.manual_control_idx = (self.manual_control_idx + 1) % self.num_movers
+
+    def toggle_manual_control(self):
+        """Toggle the manual control of movers (on/off)."""
+        self.manual_control_active = not self.manual_control_active
 
     def render(self, mover_qpos: np.ndarray, mover_qvel: np.ndarray, mover_goals: np.ndarray | None = None) -> None:
         """Render the next frame.
@@ -389,6 +421,53 @@ class Matplotlib2DViewer:
         :param mover_goals: None or a numpy array of shape (num_movers,2) containing the (x,y) goal positions of each mover, defaults
             to None. If set to None, no goals are displayed.
         """
+
+        def draw_steering_wheel(mover_x: float, mover_y: float, inscribe_span: float) -> PatchCollection:
+            """
+            Draw a steering wheel composed of multiple patches.
+
+            :param mover_x: The x-coordinate of the steering wheel's center.
+            :param mover_y: The y-coordinate of the steering wheel's center.
+            :param inscribe_span: The diameter of the inscribed circle for the steering wheel.
+            :return: A PatchCollection containing the steering wheel components.
+            """
+            if inscribe_span <= 0:
+                raise ValueError("inscribe_span must be a positive value.")
+    
+            patches = []
+
+            line_width = 2
+            r_outer = inscribe_span * 0.5 - 0.008    # compensate line width
+            ring_thick = 0.015
+            r_inner = r_outer - ring_thick
+            bars_width = ring_thick * 0.7
+            
+            # inner circle (background)
+            inner_circle = Circle((mover_x, mover_y), radius=r_outer - ring_thick, facecolor='white', linewidth=0)
+            patches.append(inner_circle)
+
+            # vertical bar (spoke)
+            vertical_bar = Rectangle((mover_x - 0.5 * bars_width, mover_y + r_inner), width=bars_width, height=-r_inner,
+                                     edgecolor='black', facecolor='darkgray')
+            patches.append(vertical_bar)
+
+            # horizontal bar (spoke)
+            horizontal_bar = Rectangle((mover_x + r_inner, mover_y - 0.5 * bars_width), width=2 * -r_inner,
+                                       height=bars_width, edgecolor='black', facecolor='darkgray')
+            patches.append(horizontal_bar)
+
+            # outer circle (grip area)
+            outer_circle = Annulus((mover_x, mover_y), r=r_outer, width=ring_thick,
+                                   edgecolor='black', facecolor='lightgray', linewidth=line_width)
+            patches.append(outer_circle)
+
+            # center circle (hub)
+            center_circle = Circle((mover_x, mover_y), radius=ring_thick, edgecolor='black', facecolor='gray', linewidth=line_width)
+            patches.append(center_circle)
+
+            # create a PatchCollection to avoid individual handling of patches
+            return PatchCollection(patches, match_original=True, zorder=3)
+
         for i in range(0, len(self.movers)):
             self.movers[i].remove()
             self.cs[i].remove()
@@ -396,6 +475,9 @@ class Matplotlib2DViewer:
             self.arrows[i].remove()
             if len(self.goals) > 0:
                 self.goals[i].remove()
+        if self.highlight_patches is not None:  # highlighting controller mover
+            self.highlight_patches.remove()
+            self.highlight_patches = None
 
         self.movers = []
         self.cs = []
@@ -407,19 +489,31 @@ class Matplotlib2DViewer:
             # we assume that the angles about the x and y axes are close to 0
             euler = rotations_utils.quat2euler(quat=mover_qpos[idx_mover, -4:])
 
+            # dimensions (width, height) of the drawn mover rectangle
+            mover_drawn_dims = (self.mover_sizes[idx_mover, 1] * 2, self.mover_sizes[idx_mover, 0] * 2)
+
             mover_rect = Rectangle(
                 (mover_qpos[idx_mover, 1] - self.mover_sizes[idx_mover, 1], mover_qpos[idx_mover, 0] - self.mover_sizes[idx_mover, 0]),
-                width=self.mover_sizes[idx_mover, 1] * 2,
-                height=self.mover_sizes[idx_mover, 0] * 2,
+                width=mover_drawn_dims[0],
+                height=mover_drawn_dims[1],
                 angle=euler[-1] * (180 / np.pi),
                 rotation_point='center',
-                color=self.mover_colors[idx_mover],
+                facecolor=self.mover_colors[idx_mover],
                 alpha=0.9,
                 fill=True,
                 zorder=2,
             )
             self.movers.append(self.axs.add_patch(mover_rect))
 
+            # draw custom pattern (steering wheel) to highlight currently controlled mover
+            if self.manual_control_active and idx_mover == self.manual_control_idx:
+                self.highlight_patches = draw_steering_wheel(
+                    mover_x=mover_qpos[idx_mover, 1],
+                    mover_y=mover_qpos[idx_mover, 0],
+                    inscribe_span=min(mover_drawn_dims),
+                )
+                self.axs.add_collection(self.highlight_patches)
+            
             arrow = Arrow(
                 x=mover_qpos[idx_mover, 1],
                 y=mover_qpos[idx_mover, 0],
@@ -498,10 +592,104 @@ class Matplotlib2DViewer:
                 )[0]
                 self.goals.append(goal)
 
-        plt.tight_layout()
         plt.show(block=False)
         plt.pause(0.0001)
 
     def close(self):
         """Close the figure."""
         plt.close(self.figure)
+
+
+class ManualControl:
+    """
+    A class to handle manual control of movers in the Matplotlib2DViewer.
+
+    This class provides key press and release event callbacks to control the movement of movers manually.
+    It interacts with the Matplotlib2DViewer to update the controlled mover and toggle manual control mode.
+
+    :param viewer: An instance of Matplotlib2DViewer to interact with and control.
+    """
+
+    ACCELERATION = 5.0
+
+    # pass a reference of Matplotlib2DViewer to access its methods
+    def __init__(self, viewer: 'Matplotlib2DViewer') -> None:
+        self.viewer = viewer
+        self.keys_pressed = set()
+        self.reset_kinematics()
+
+    def _on_key_press(self, event):
+        """Callback for key press events. Adds the pressed key to the set of active keys and triggers specific actions.
+
+        :param event: The key press event containing information about the pressed key.
+        """
+        sys.stdout.flush()          # flush output to avoid buffering problems
+
+        # for actions applied while the key is held
+        self.keys_pressed.add(event.key.lower())
+
+        # for actions triggered once on key press
+        match event.key.lower():
+            case 'm':   # increment index of currently controlled mover
+                self.viewer.increment_controlled_mover()
+            case 'c':   # toggle manual control (on/off)
+                self.viewer.toggle_manual_control()
+        
+    def _on_key_release(self, event):
+        """Callback for key release events. Removes the released key from the set of active keys.
+
+        :param event: The key release event containing information about the released key.
+        """
+        sys.stdout.flush()          # flush output to avoid buffering problems
+        self.keys_pressed.discard(event.key.lower())
+
+    def reset_kinematics(self):
+        """Reset the current acceleration values to zero. """
+        self.current_acc = np.array([0.0, 0.0], dtype=np.float64)
+
+    def apply_key_kinematics(self):
+        """Apply kinematic updates based on the currently pressed keys.
+        Updates the acceleration values for the controlled mover:
+        
+            - 'up': Negative acceleration along the x-axis (move upward).
+            - 'down': Positive acceleration along the x-axis (move downward).
+            - 'left': Negative acceleration along the y-axis (move leftward).
+            - 'right': Positive acceleration along the y-axis (move rightward).
+        """
+        self.current_acc = np.zeros_like(self.current_acc)
+
+        if 'up' in self.keys_pressed:
+            self.current_acc[0] = -self.ACCELERATION
+        elif 'down' in self.keys_pressed:
+            self.current_acc[0] = self.ACCELERATION
+        
+        if 'left' in self.keys_pressed:
+            self.current_acc[1] = -self.ACCELERATION
+        elif 'right' in self.keys_pressed:
+            self.current_acc[1] = self.ACCELERATION
+
+    def get_action_manual(self) -> np.ndarray:
+        """Get the current acceleration values based on the pressed keys and the current mover index.
+        If manual control is inactive, the acceleration values remain unchanged.
+
+        :return: A numpy array containing the current acceleration values and the index of the currently controlled mover.
+        """
+        if self.viewer.manual_control_active:
+            self.apply_key_kinematics()
+                
+        return self.current_acc.copy(), self.viewer.manual_control_idx
+    
+    def overwrite_action(self, action_input: np.ndarray) -> np.ndarray:
+        """Overwrite the action for the specified mover with the manually controlled acceleration values.
+
+        :param action_input: The action array to be overwritten.
+        :return: The action array with the manually controlled acceleration values for the controlled mover (if manual control is active).
+        """
+        assert(len(action_input) == 2 * self.viewer.num_movers)
+        if self.viewer.manual_control_active:
+            action_output = action_input.copy()     # copy to avoid changing the original array
+            manual_action, mover_idx = self.get_action_manual()
+            action_output[mover_idx*2:(mover_idx+1)*2] = manual_action
+            return action_output
+        else:
+            return action_input

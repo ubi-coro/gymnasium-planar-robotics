@@ -40,6 +40,7 @@ A detailed documentation of all basic environments and utilities can be found in
 
    make_own_env/impedance_control
    make_own_env/rendering
+   make_own_env/manual_control
    make_own_env/geometry_2D_utils
    make_own_env/mujoco_utils
 

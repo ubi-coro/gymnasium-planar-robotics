@@ -1567,9 +1567,9 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
             truncated = self.compute_truncated(observation['achieved_goal'], observation['desired_goal'], info)
         else:
             info = self._get_info(mover_collision, wall_collision)
-            reward = self.compute_reward(info)
-            terminated = self.compute_terminated(info)
-            truncated = self.compute_truncated(info)
+            reward = self.compute_reward(info=info)
+            terminated = self.compute_terminated(info=info)
+            truncated = self.compute_truncated(info=info)
         # check reward shape
         if isinstance(reward, np.ndarray) and reward.shape[0] > 1:
             logger.warn(
