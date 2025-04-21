@@ -388,7 +388,7 @@ class Matplotlib2DViewer:
         self.arrows = []
         self.goals = []
 
-         # register key press/release event callbacks
+        # register key press/release event callbacks
         self.manual_controller = ManualControl(self)
         self.figure.canvas.mpl_connect('key_press_event', self.manual_controller._on_key_press)
         self.figure.canvas.mpl_connect('key_release_event', self.manual_controller._on_key_release)
@@ -650,6 +650,7 @@ class ManualControl:
     def apply_key_kinematics(self):
         """Apply kinematic updates based on the currently pressed keys.
         Updates the acceleration values for the controlled mover:
+        
             - 'up': Negative acceleration along the x-axis (move upward).
             - 'down': Positive acceleration along the x-axis (move downward).
             - 'left': Negative acceleration along the y-axis (move leftward).
