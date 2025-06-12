@@ -7,6 +7,7 @@ Release v1.0.4 (2025-06-12)
 General
 ^^^^^^^
 1. Update dependencies (now supports ``gymnasium>=0.29.1``)
+2. Update supported Python versions (3.11, 3.12, 3.13)
 
 Release v1.0.3 (2025-01-14)
 ---------------------------
