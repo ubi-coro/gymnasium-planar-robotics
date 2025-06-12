@@ -19,7 +19,7 @@ classifiers = [
 dependencies = [
     "numpy",
     "matplotlib",
-    "gymnasium==0.29.1",
+    "gymnasium>=0.29.1",
     "pettingzoo",
     "mujoco>=3.1.2",
     "imageio"

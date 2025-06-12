@@ -909,7 +909,7 @@ class BasicPlanarRoboticsEnv:
             if mover_goal_xy_pos is not None and not is_obstacle:
                 mover_xml_str += (
                     f'\n\t\t<site name="goal_site_mover_{idx_mover}" type="sphere" material="{material_str}" '
-                    + f'size="0.02" pos="{mover_goal_xy_pos[idx_mover,0]} {mover_goal_xy_pos[idx_mover,1]} '
+                    + f'size="0.02" pos="{mover_goal_xy_pos[idx_mover, 0]} {mover_goal_xy_pos[idx_mover, 1]} '
                     + f'{self.tile_size[2] + 0.002:.5f}"/>'
                 )
             mover_xml_str += '\n'
@@ -987,11 +987,11 @@ class BasicPlanarRoboticsEnv:
             '\n\n\t<worldbody>'
             + '\n\t\t<light directional="true" ambient="0.2 0.2 0.2" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="false"'
             + ' pos="0 0 4" dir="0 0 -1" name="light0"/>'
-            + f'\n\t\t<geom name="ground_plane" pos="{x_pos_table} {y_pos_table} {-self.tile_size[2]*2-self.table_height}" '
+            + f'\n\t\t<geom name="ground_plane" pos="{x_pos_table} {y_pos_table} {-self.tile_size[2] * 2 - self.table_height}" '
             + 'type="plane" size="10 10 10" material="floor_mat"/>'
-            + f'\n\t\t<geom name="table" pos="{x_pos_table} {y_pos_table} {-self.tile_size[2]-self.table_height/2}" '
-            + f'size="{(self.num_tiles_x*(self.tile_size[0]*2)+0.1)/2} {(self.num_tiles_y*(self.tile_size[1]*2)+0.1)/2} '
-            + f'{self.table_height/2}" type="box" material="gray" mass="20"/>'
+            + f'\n\t\t<geom name="table" pos="{x_pos_table} {y_pos_table} {-self.tile_size[2] - self.table_height / 2}" size='
+            + f'"{(self.num_tiles_x * (self.tile_size[0] * 2) + 0.1) / 2} {(self.num_tiles_y * (self.tile_size[1] * 2) + 0.1) / 2} '
+            + f'{self.table_height / 2}" type="box" material="gray" mass="20"/>'
             + '\n\n\t\t<!-- tiles -->'
             + f'\n\t\t<body name="tile_body" childclass="planar_robotics" pos="0 0 {-self.tile_size[2]}" gravcomp="1">'
             + tile_xml_str
