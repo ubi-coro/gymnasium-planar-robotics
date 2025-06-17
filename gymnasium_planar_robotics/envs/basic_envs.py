@@ -342,7 +342,7 @@ class BasicPlanarRoboticsEnv:
         add_safety_offset: bool = False,
         mover_qpos: np.ndarray | None = None,
         add_qpos_noise: bool = False,
-    ) -> np.bool:
+    ) -> bool:
         """Check whether two movers specified in ``mover_names`` collide. In case of collision shape 'box', this method takes the
         orientation of the movers into account.
 
