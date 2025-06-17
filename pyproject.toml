@@ -13,13 +13,15 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     'Intended Audience :: Science/Research',
     'Topic :: Scientific/Engineering :: Artificial Intelligence',
 ]
 dependencies = [
     "numpy",
     "matplotlib",
-    "gymnasium==0.29.1",
+    "gymnasium>=0.29.1",
     "pettingzoo",
     "mujoco>=3.1.2",
     "imageio"

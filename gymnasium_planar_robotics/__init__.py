@@ -36,3 +36,6 @@ def register_gymnasium_envs():
         entry_point='gymnasium_planar_robotics.envs.manipulation.benchmark_pushing_env:BenchmarkPushingEnv',
         max_episode_steps=50,
     )
+
+
+register_gymnasium_envs()
