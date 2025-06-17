@@ -15,7 +15,6 @@ from pettingzoo import ParallelEnv
 
 from gymnasium_planar_robotics.utils import geometry_2D_utils, mujoco_utils, rendering
 
-ASSETS_DIR = Path(__file__).parent.resolve() / 'assets'
 INVALID_MOVER_SHAPE_ERROR = "Invalid mover shape. Supported shapes are: 'box', 'cylinder', 'mesh'"
 
 
@@ -1098,7 +1097,7 @@ class BasicPlanarRoboticsEnv:
         xml += '\n<mujoco model="planar_robotics">'
         # compiler
         if custom_compiler_xml_str is None:
-            xml += '\n\t<compiler angle="radian" coordinate="local"/>'
+            xml += f'\n\t<compiler angle="radian" coordinate="local" meshdir="{Path(__file__).parent.resolve() / "assets"}" />'
         else:
             xml += custom_compiler_xml_str
         # visual
@@ -1403,10 +1402,6 @@ class BasicPlanarRoboticsEnv:
             )
 
         # check mover mesh params
-        assert Path(self.mover_mesh_mover_stl_path).exists(), 'Mover mesh path does not exist.'
-        assert self.mover_mesh_bumper_stl_path is None or Path(self.mover_mesh_bumper_stl_path).exists(), (
-            'Bumper mesh path does not exist.'
-        )
         assert self.mover_mesh_bumper_mass >= 0, 'Bumper mass must be non-negative.'
 
     def _check_collision_params(self) -> None:
@@ -1498,7 +1493,7 @@ class BasicPlanarRoboticsEnv:
         """
         model_xml_str = f"""<?xml version="1.0" encoding="utf-8"?>
         <mujoco model="planar_robotics">
-            <compiler angle="radian" coordinate="local"/>
+            <compiler angle="radian" coordinate="local" meshdir="{Path(__file__).parent.resolve() / 'assets'}" />
 
             <asset>
                 <material name="black" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.25 0.25 0.25 1" />
@@ -1577,31 +1572,31 @@ class BasicPlanarRoboticsEnv:
 
         return resolved_mover_size
 
-    def _resolve_mesh_path(self, path: str) -> Path | None:
+    def _resolve_mesh_path(self, path: str) -> str | None:
         """Resolve a mesh path string to a Path object, either from predefined
         meshes or as a direct path.
         """
         predefined_meshes = {
-            'beckhoff_apm4220_mover': ASSETS_DIR / 'beckhoff_apm4220_mover.stl',
-            'beckhoff_apm4220_bumper': ASSETS_DIR / 'beckhoff_apm4220_bumper.stl',
-            'beckhoff_apm4330_mover': ASSETS_DIR / 'beckhoff_apm4330_mover.stl',
-            'beckhoff_apm4330_bumper': ASSETS_DIR / 'beckhoff_apm4330_bumper.stl',
-            'beckhoff_apm4550_mover': ASSETS_DIR / 'beckhoff_apm4550_mover.stl',
-            'beckhoff_apm4550_bumper': ASSETS_DIR / 'beckhoff_apm4550_bumper.stl',
-            'planar_motor_M3-06': ASSETS_DIR / 'planar_motor_M3-06-04.stl',
-            'planar_motor_M3-15': ASSETS_DIR / 'planar_motor_M3-15-05.stl',
-            'planar_motor_M3-25': ASSETS_DIR / 'planar_motor_M3-25-05.stl',
-            'planar_motor_M4-11': ASSETS_DIR / 'planar_motor_M4-11-01.stl',
-            'planar_motor_M4-18': ASSETS_DIR / 'planar_motor_M4-18-01.stl',
+            'beckhoff_apm4220_mover',
+            'beckhoff_apm4220_bumper',
+            'beckhoff_apm4330_mover',
+            'beckhoff_apm4330_bumper',
+            'beckhoff_apm4550_mover',
+            'beckhoff_apm4550_bumper',
+            'planar_motor_M3-06',
+            'planar_motor_M3-15',
+            'planar_motor_M3-25',
+            'planar_motor_M4-11',
+            'planar_motor_M4-18',
         }
 
         if path is None:
             return None
 
         if path in predefined_meshes:
-            return predefined_meshes[path]
+            return f'./{path}.stl'
 
-        return Path(path)
+        return path
 
 
 class BasicPlanarRoboticsMultiAgentEnv(BasicPlanarRoboticsEnv, ParallelEnv):
