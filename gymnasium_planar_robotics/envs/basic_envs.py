@@ -16,6 +16,7 @@ from pettingzoo import ParallelEnv
 from gymnasium_planar_robotics.utils import geometry_2D_utils, mujoco_utils, rendering
 
 ASSETS_DIR = Path(__file__).parent.resolve() / 'assets'
+INVALID_MOVER_SHAPE_ERROR = "Invalid mover shape. Supported shapes are: 'box', 'cylinder', 'mesh'"
 
 
 class BasicPlanarRoboticsEnv:
@@ -802,8 +803,10 @@ class BasicPlanarRoboticsEnv:
 
         if shape == 'box' or shape == 'mesh':  # height at index 2
             qpos[2] -= self.resolved_mover_size[mover_idx, 2]
-        else:  # shape == 'cylinder', height at index 1
+        elif shape == 'cylinder':  # height at index 1
             qpos[2] -= self.resolved_mover_size[mover_idx, 1]
+        else:
+            raise ValueError(INVALID_MOVER_SHAPE_ERROR)
 
         return qpos + self.rng_noise.normal(loc=0.0, scale=self.std_noise[0] * int(add_noise), size=qpos.shape[0])
 
@@ -905,6 +908,8 @@ class BasicPlanarRoboticsEnv:
                 )
 
             body_str += '\n\t\t</body>'
+        else:
+            raise ValueError(INVALID_MOVER_SHAPE_ERROR)
 
         return (asset_str, body_str)
 
@@ -1016,9 +1021,11 @@ class BasicPlanarRoboticsEnv:
 
             if mover_shape == 'box' or mover_shape == 'cylinder':
                 mover_size = self.resolved_mover_size[idx_mover, :].copy()
-            else:  # mover_shape == 'mesh'
+            elif mover_shape == 'mesh':
                 # We need the scale, not the size, so we can't use resolved_mover_size here.
                 mover_size = self.mover_size[idx_mover, :].copy() if len(self.mover_size.shape) == 2 else self.mover_size.copy()
+            else:
+                raise ValueError(INVALID_MOVER_SHAPE_ERROR)
 
             if isinstance(self.mover_mass, np.ndarray):
                 mover_mass = self.mover_mass[idx_mover]
@@ -1040,8 +1047,10 @@ class BasicPlanarRoboticsEnv:
 
             if mover_shape == 'box' or mover_shape == 'mesh':
                 z_pos = self.initial_mover_zpos + self.resolved_mover_size[idx_mover, 2]
-            else:  # mover_shape == 'cylinder'
+            elif mover_shape == 'cylinder':
                 z_pos = self.initial_mover_zpos + mover_size[1]
+            else:
+                raise ValueError(INVALID_MOVER_SHAPE_ERROR)
 
             if mover_start_xy_pos is None:
                 mover_xpos = valid_xy_pos_mover[idx_mover][0]
@@ -1428,9 +1437,11 @@ class BasicPlanarRoboticsEnv:
             if mover_shape == 'box' or mover_shape == 'mesh':
                 mover_size_x = self.resolved_mover_size[idx_mover, 0]
                 mover_size_y = self.resolved_mover_size[idx_mover, 1]
-            else:  # mover_shape == 'cylinder'
+            elif mover_shape == 'cylinder':
                 mover_size_x = self.resolved_mover_size[idx_mover, 0]
                 mover_size_y = self.resolved_mover_size[idx_mover, 0]
+            else:
+                raise ValueError(INVALID_MOVER_SHAPE_ERROR)
 
             if self.c_shape == 'circle':
                 c_size = self.c_size[idx_mover] if isinstance(self.c_size, np.ndarray) else self.c_size
