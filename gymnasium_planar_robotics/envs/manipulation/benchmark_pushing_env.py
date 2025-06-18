@@ -86,14 +86,16 @@ Parameters
 
 """
 
-import numpy as np
-import gymnasium as gym
-from gymnasium import logger
-import mujoco
-from gymnasium_planar_robotics import BasicPlanarRoboticsSingleAgentEnv
-from gymnasium_planar_robotics.utils import mujoco_utils
-from gymnasium_planar_robotics import MoverImpedanceController
 from collections import OrderedDict
+from typing import Any
+
+import gymnasium as gym
+import mujoco
+import numpy as np
+from gymnasium import logger
+
+from gymnasium_planar_robotics import BasicPlanarRoboticsSingleAgentEnv, MoverImpedanceController
+from gymnasium_planar_robotics.utils import mujoco_utils
 
 
 class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
@@ -151,13 +153,13 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
 
     def __init__(
         self,
-        mover_params: dict[str, any] | None = None,
+        mover_params: dict[str, Any] | None = None,
         initial_mover_zpos: float = 0.003,
         std_noise: np.ndarray | float = 1e-5,
         render_mode: str | None = 'human',
         render_every_cycle: bool = False,
         num_cycles: int = 40,
-        collision_params: dict[str, any] | None = None,
+        collision_params: dict[str, Any] | None = None,
         v_max: float = 2.0,
         a_max: float = 10.0,
         j_max: float = 100.0,
@@ -368,7 +370,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
             self.viewer_collection.reload_model(self.model, self.data)
         self.render()
 
-    def _reset_callback(self, options: dict[str, any] | None = None) -> None:
+    def _reset_callback(self, options: dict[str, Any] | None = None) -> None:
         """Reset the start position of mover and object and the object goal position and reload the model. It is ensured that the
         new start position of the mover is collision-free, i.e. no wall collision and no collision with the object.
         In addition, the object's start position is chosen such that the mover fits between the wall and the object. This is important
@@ -447,7 +449,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
         )
 
     def compute_terminated(
-        self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: dict[str, any] | None = None
+        self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: dict[str, Any] | None = None
     ) -> np.ndarray | bool:
         """Check whether a terminal state is reached. A state is terminal when the mover collides with a wall.
 
@@ -468,7 +470,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
         return terminated
 
     def compute_truncated(
-        self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: dict[str, any] | None = None
+        self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: dict[str, Any] | None = None
     ) -> np.ndarray | bool:
         """Check whether the truncation condition is satisfied. The truncation condition (a time limit in this environment) is
         automatically checked by the Gymnasium TimeLimit Wrapper, which is why this method always returns False.
@@ -489,7 +491,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
         return np.array([False] * batch_size) if batch_size > 1 else False
 
     def compute_reward(
-        self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: dict[str, any] | None = None
+        self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: dict[str, Any] | None = None
     ) -> np.ndarray | float:
         """Compute the immediate reward.
 
@@ -569,7 +571,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
 
     def _get_info(
         self, mover_collision: bool, wall_collision: bool, achieved_goal: np.ndarray, desired_goal: np.ndarray
-    ) -> dict[str, any]:
+    ) -> dict[str, Any]:
         """Return a dictionary that contains auxiliary information.
 
         :param mover_collision: whether there is a collision between two movers
@@ -646,7 +648,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
 
         return np.linalg.norm(achieved_goal - desired_goal, ord=2, axis=1)
 
-    def _preprocess_info_dict(self, info: np.ndarray | dict[str, any]) -> tuple[int, np.ndarray, np.ndarray]:
+    def _preprocess_info_dict(self, info: np.ndarray | dict[str, Any]) -> tuple[int, np.ndarray, np.ndarray]:
         """Extract information about mover collisions, wall collisions and the batch size from the info dictionary.
 
         :param info: the info dictionary or an array of info dictionary to be preprocessed. All dictionaries must contain the keys
