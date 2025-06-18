@@ -1627,16 +1627,16 @@ class BasicPlanarRoboticsMultiAgentEnv(BasicPlanarRoboticsEnv, ParallelEnv):
         self,
         layout_tiles: np.ndarray,
         num_movers: int,
-        tile_params: dict[str, any] | None = None,
-        mover_params: dict[str, any] | None = None,
+        tile_params: dict[str, Any] | None = None,
+        mover_params: dict[str, Any] | None = None,
         initial_mover_zpos: float = 0.005,
         table_height: float = 0.4,
         std_noise: np.ndarray | float = 1e-5,
         render_mode: str | None = 'human',
-        default_cam_config: dict[str, any] | None = None,
+        default_cam_config: dict[str, Any] | None = None,
         width_no_camera_specified: int = 1240,
         height_no_camera_specified: int = 1080,
-        collision_params: dict[str, any] | None = None,
+        collision_params: dict[str, Any] | None = None,
         initial_mover_start_xy_pos: np.ndarray | None = None,
         initial_mover_goal_xy_pos: np.ndarray | None = None,
         custom_model_xml_strings: dict[str, str] | None = None,
@@ -1699,18 +1699,18 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
         self,
         layout_tiles: np.ndarray,
         num_movers: int,
-        tile_params: dict[str, any] | None = None,
-        mover_params: dict[str, any] | None = None,
+        tile_params: dict[str, Any] | None = None,
+        mover_params: dict[str, Any] | None = None,
         initial_mover_zpos: float = 0.005,
         table_height: float = 0.4,
         std_noise: np.ndarray | float = 1e-5,
         render_mode: str | None = 'human',
         render_every_cycle: bool = False,
-        default_cam_config: dict[str, any] | None = None,
+        default_cam_config: dict[str, Any] | None = None,
         width_no_camera_specified: int = 1240,
         height_no_camera_specified: int = 1080,
         num_cycles: int = 40,
-        collision_params: dict[str, any] | None = None,
+        collision_params: dict[str, Any] | None = None,
         initial_mover_start_xy_pos: np.ndarray | None = None,
         initial_mover_goal_xy_pos: np.ndarray | None = None,
         custom_model_xml_strings: dict[str, str] | None = None,
@@ -1739,7 +1739,7 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
         # number of control cycles for which to apply the same action
         self.num_cycles = num_cycles
 
-    def reset(self, seed: int | None = None, options: dict[str, any] | None = None) -> tuple[dict[str, np.ndarray], dict[str, any]]:
+    def reset(self, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
         """Reset the environment returning an initial observation and auxiliary information. More detailed information about the
         parameters and return values can be found in the Gymnasium documentation:
         https://gymnasium.farama.org/api/env/#gymnasium.Env.reset.
@@ -1793,7 +1793,7 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
 
         return observation, info
 
-    def step(self, action: int | np.ndarray) -> tuple[dict[str, np.ndarray], float, bool, bool, dict[str, any]]:
+    def step(self, action: int | np.ndarray) -> tuple[dict[str, np.ndarray], float, bool, bool, dict[str, Any]]:
         """Execute one step of the environment's dynamics applying the given action.
         Note that the environment executes as many MuJoCo simulation steps as the number of cycles specified for this environment
         (``num_cycles``). The duration of one cycle is determined by the cycle time, which must be specified in the MuJoCo xml
@@ -1889,7 +1889,7 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
 
         return observation, reward, terminated, truncated, info
 
-    def _reset_callback(self, options: dict[str, any] | None = None) -> None:
+    def _reset_callback(self, options: dict[str, Any] | None = None) -> None:
         """A callback that should be used to add further functionality to the ``reset()`` method (see documentation of the ``reset()``
         method for more information about when the callback is called).
 
@@ -1915,7 +1915,7 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
 
     @abstractmethod
     def compute_terminated(
-        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, any] | None = None
+        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, Any] | None = None
     ) -> np.ndarray | bool:
         """Check whether a terminal state is reached. This method can be used for both goal-conditioned RL and standard RL.
         Since Hindsight Experience Replay (HER) is commonly used in goal-conditioned RL, this method receives
@@ -1934,7 +1934,7 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
 
     @abstractmethod
     def compute_truncated(
-        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, any] | None = None
+        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, Any] | None = None
     ) -> np.ndarray | bool:
         """Check whether the truncation condition is satisfied. This method can be used for both goal-conditioned RL and standard RL.
         Since Hindsight Experience Replay (HER) is commonly used in goal-conditioned RL, this method receives
@@ -1953,7 +1953,7 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
 
     @abstractmethod
     def compute_reward(
-        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, any] | None = None
+        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, Any] | None = None
     ) -> np.ndarray | float:
         """Compute the immediate reward. This method is required by the stable-baselines3 implementation of Hindsight Experience
         Replay (HER) (for more information, see https://stable-baselines3.readthedocs.io/en/master/modules/her.html).
@@ -1982,7 +1982,7 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
         wall_collision: bool,
         achieved_goal: np.ndarray | None = None,
         desired_goal: np.ndarray | None = None,
-    ) -> dict[str, any]:
+    ) -> dict[str, Any]:
         """Return a dictionary that contains auxiliary information that may depend on the 'achieved_goal' and 'desired_goal' in
         goal-conditioned RL.
 
