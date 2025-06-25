@@ -1,5 +1,5 @@
 # fmt: off
-# ruff: noqa: D212, D400, D407, D411, D412, D413, D415, D417
+# ruff: noqa: D212, D400, D411, D413, D415
 
 # Copyright (c) 2009-2017, Matthew Brett and Christoph Gohlke
 #    All rights reserved.
@@ -127,7 +127,7 @@ def euler2mat(euler):
     cc, cs = ci * ck, ci * sk
     sc, ss = si * ck, si * sk
 
-    mat = np.empty(euler.shape[:-1] + (3, 3), dtype=np.float64)
+    mat = np.empty((*euler.shape[:-1], 3, 3), dtype=np.float64)
     mat[..., 2, 2] = cj * ck
     mat[..., 2, 1] = sj * sc - cs
     mat[..., 2, 0] = sj * cc + ss
@@ -154,7 +154,7 @@ def euler2quat(euler):
     cc, cs = ci * ck, ci * sk
     sc, ss = si * ck, si * sk
 
-    quat = np.empty(euler.shape[:-1] + (4,), dtype=np.float64)
+    quat = np.empty((*euler.shape[:-1], 4), dtype=np.float64)
     quat[..., 0] = cj * cc + sj * ss
     quat[..., 3] = cj * sc - sj * cs
     quat[..., 2] = -(cj * ss + sj * cc)
@@ -199,7 +199,7 @@ def mat2quat(mat):
     Qxy, Qyy, Qzy = mat[..., 1, 0], mat[..., 1, 1], mat[..., 1, 2]
     Qxz, Qyz, Qzz = mat[..., 2, 0], mat[..., 2, 1], mat[..., 2, 2]
     # Fill only lower half of symmetric matrix
-    K = np.zeros(mat.shape[:-2] + (4, 4), dtype=np.float64)
+    K = np.zeros((*mat.shape[:-2], 4, 4), dtype=np.float64)
     K[..., 0, 0] = Qxx - Qyy - Qzz
     K[..., 1, 0] = Qyx + Qxy
     K[..., 1, 1] = Qyy - Qxx - Qzz
@@ -212,7 +212,7 @@ def mat2quat(mat):
     K[..., 3, 3] = Qxx + Qyy + Qzz
     K /= 3.0
     # TODO: vectorize this -- probably could be made faster
-    q = np.empty(K.shape[:-2] + (4,))
+    q = np.empty((*K.shape[:-2], 4,))
     it = np.nditer(q[..., 0], flags=["multi_index"])
     while not it.finished:
         # Use Hermitian eigenvectors, values for speed
@@ -261,7 +261,7 @@ def quat2mat(quat):
     xX, xY, xZ = x * X, x * Y, x * Z
     yY, yZ, zZ = y * Y, y * Z, z * Z
 
-    mat = np.empty(quat.shape[:-1] + (3, 3), dtype=np.float64)
+    mat = np.empty((*quat.shape[:-1], 3, 3), dtype=np.float64)
     mat[..., 0, 0] = 1.0 - (yY + zZ)
     mat[..., 0, 1] = xY - wZ
     mat[..., 0, 2] = xZ + wY

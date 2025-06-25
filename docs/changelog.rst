@@ -6,7 +6,7 @@ Release v1.1.0 (2025-06-17)
 
 General
 ^^^^^^^
-1. Add different mover types (cylinder, mesh)
+1. Add different mover types (cylinder, mesh) :spelling:ignore:`(@cedricgrothues)`
 
 Release v1.0.4 (2025-06-12)
 ---------------------------
