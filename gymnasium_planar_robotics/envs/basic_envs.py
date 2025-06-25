@@ -3,13 +3,19 @@
 ##########################################################
 
 from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Any
+
 import gymnasium as gym
-from gymnasium import logger
-from pettingzoo import ParallelEnv
-import numpy as np
 import mujoco
 import mujoco.viewer
+import numpy as np
+from gymnasium import logger
+from pettingzoo import ParallelEnv
+
 from gymnasium_planar_robotics.utils import geometry_2D_utils, mujoco_utils, rendering
+
+INVALID_MOVER_SHAPE_ERROR = "Invalid mover shape. Supported shapes are: 'box', 'cylinder', 'mesh'"
 
 
 class BasicPlanarRoboticsEnv:
@@ -29,15 +35,59 @@ class BasicPlanarRoboticsEnv:
 
         - mass: 5.6 [kg]
         - size: [0.24/2, 0.24/2, 0.0352/2] (x,y,z) [m] (note: half-size)
-    :param mover_params: a dictionary that can be used to specify the mass and size of each mover using the keys 'mass' or 'size',
-        defaults to None. To use the same mass and size for each mover, the mass can be specified as a single float value and the
-        size as a numpy array of shape (3,). However, the movers can also be of different types, i.e. different masses and sizes.
-        In this case, the mass and size should be specified as numpy arrays of shapes (num_movers,) and (num_movers,3),
-        respectively. If set to None or only one key is specified, both mass and size or the missing value are set to the following
-        default values:
+    :param mover_params: Dictionary specifying mover properties. If None, default values are used. Supported keys:
 
-        - mass: 1.24 [kg]
-        - size: [0.155/2, 0.155/2, 0.012/2] (x,y,z) [m] (note: half-size)
+        - mass (float | numpy.ndarray): Mass in kilograms. Options:
+            - Single float: Same mass for all movers
+            - 1D array (num_movers,): Individual masses per mover
+
+        Default: 1.24 [kg]
+
+        - shape (str | list[str]): Mover shape type. Must be one of:
+            - 'box': Rectangular cuboid
+            - 'cylinder': Cylindrical shape
+            - 'mesh': Custom 3D mesh
+
+            Default: 'box'
+
+        - size (numpy.ndarray): Shape dimensions in meters. Format depends on shape:
+            - For 'box': Half-sizes (x, y, z)
+            - For 'cylinder': (radius, height, _)
+            - For 'mesh': Scale factors (x, y, z)
+
+            Specification options:
+            - 1D array (3,): Same size for all movers
+            - 2D array (num_movers, 3): Individual sizes per mover
+
+            Default: [0.155/2, 0.155/2, 0.012/2] [m]
+
+        - mesh (dict): Configuration for mesh-based shapes. Required when shape='mesh'. Contains:
+            - mover_stl_path (str): Path to mover mesh STL file or one of the predefined meshes:
+                - 'beckhoff_apm4330_mover': Beckhoff APM4220 mover mesh (default)
+                - 'beckhoff_apm4220_mover': Beckhoff APM4220 mover mesh
+                - 'beckhoff_apm4550_mover': Beckhoff APM4550 mover mesh
+                - 'planar_motor_M3-06': Planar Motor M3-06 mover mesh
+                - 'planar_motor_M3-15': Planar Motor M3-15 mover mesh
+                - 'planar_motor_M3-25': Planar Motor M3-25 mover mesh
+                - 'planar_motor_M4-11': Planar Motor M4-11 mover mesh
+                - 'planar_motor_M4-18': Planar Motor M4-18 mover mesh
+            - bumper_stl_path (str | None): Path to bumper mesh STL file or one of the predefined meshes:
+                - 'beckhoff_apm4330_bumper': Beckhoff APM4330 bumper mesh (default)
+                - 'beckhoff_apm4220_bumper': Beckhoff APM4220 bumper mesh
+                - 'beckhoff_apm4550_bumper': Beckhoff APM4550 bumper mesh
+            - bumper_mass (float | numpy.ndarray): Bumper mass in kilograms. Can be specified as:
+                - Single float: Same mass applied to all bumpers
+                - 1D array (num_movers,): Individual masses for each bumper
+
+                Default: 0.1 [kg]
+
+        - material (str | list[str]): Material name to apply to the mover. Can be specified as:
+            - Single string: Same material for all movers
+            - List of strings: Individual materials for each mover
+
+            Default: "gray" for movers without goals, color-coded materials for movers with goals
+
+        Note: Custom mesh STL files must have their origin at the mover's center.
     :param initial_mover_zpos: the initial distance between the bottom of the mover and the top of a tile, defaults to 0.005 [m]
     :param table_height: the height of a table on which the tiles are placed, defaults to 0.4 [m]
     :param std_noise: the standard deviation of a Gaussian with zero mean used to add noise, defaults to 1e-5. The standard
@@ -107,16 +157,16 @@ class BasicPlanarRoboticsEnv:
         self,
         layout_tiles: np.ndarray,
         num_movers: int,
-        tile_params: dict[str, any] | None = None,
-        mover_params: dict[str, any] | None = None,
+        tile_params: dict[str, Any] | None = None,
+        mover_params: dict[str, Any] | None = None,
         initial_mover_zpos: float = 0.005,
         table_height: float = 0.4,
         std_noise: np.ndarray | float = 1e-5,
         render_mode: str | None = 'human',
-        default_cam_config: dict[str, any] | None = None,
+        default_cam_config: dict[str, Any] | None = None,
         width_no_camera_specified: int = 1240,
         height_no_camera_specified: int = 1080,
-        collision_params: dict[str, any] | None = None,
+        collision_params: dict[str, Any] | None = None,
         initial_mover_start_xy_pos: np.ndarray | None = None,
         initial_mover_goal_xy_pos: np.ndarray | None = None,
         custom_model_xml_strings: dict[str, str] | None = None,
@@ -130,7 +180,9 @@ class BasicPlanarRoboticsEnv:
             self.std_noise = np.array([std_noise, std_noise, std_noise])
         else:
             # use possibly different standard deviations for position, velocity and acceleration
-            assert std_noise.shape == (3,), 'noise standard deviation has to be a float or a numpy array of shape (3,)'
+            assert isinstance(std_noise, np.ndarray) and std_noise.shape == (3,), (
+                'noise standard deviation has to be a float or a numpy array of shape (3,)'
+            )
             self.std_noise = std_noise
 
         # tile configuration
@@ -171,8 +223,18 @@ class BasicPlanarRoboticsEnv:
             mover_params = {}
         self.mover_size = mover_params.get('size', np.array([0.155 / 2, 0.155 / 2, 0.012 / 2]))
         self.mover_mass = mover_params.get('mass', 1.24)
+        self.mover_shape = mover_params.get('shape', 'box')
+        self.mover_material = mover_params.get('material')
+
+        mover_mesh = mover_params.get('mesh', {})
+        self.mover_mesh_mover_stl_path = self._resolve_mesh_path(mover_mesh.get('mover_stl_path', 'beckhoff_apm4330_mover'))
+        self.mover_mesh_bumper_stl_path = self._resolve_mesh_path(mover_mesh.get('bumper_stl_path', 'beckhoff_apm4330_bumper'))
+        self.mover_mesh_bumper_mass = mover_mesh.get('bumper_mass', 0.1)
+
         self.initial_mover_zpos = initial_mover_zpos
         self._check_mover_config(initial_mover_start_xy_pos, initial_mover_goal_xy_pos)
+
+        self.resolved_mover_size = self._resolve_mover_size(self.mover_size, self.mover_shape)
 
         # collision detection
         if collision_params is None:
@@ -732,11 +794,18 @@ class BasicPlanarRoboticsEnv:
         mover_idx = self.mover_names.index(mover_name)
         joint_name = self.mover_joint_names[mover_idx]
         qpos = mujoco_utils.get_joint_qpos(self.model, self.data, joint_name)
-        if self.mover_size.shape == (3,):
-            qpos[2] -= self.mover_size[2]
+
+        if isinstance(self.mover_shape, list):
+            shape = self.mover_shape[mover_idx]
+        else:  # isinstance(self.mover_shape, str)
+            shape = self.mover_shape
+
+        if shape == 'box' or shape == 'mesh':  # height at index 2
+            qpos[2] -= self.resolved_mover_size[mover_idx, 2]
+        elif shape == 'cylinder':  # height at index 1
+            qpos[2] -= self.resolved_mover_size[mover_idx, 1]
         else:
-            # self.mover_size.shape == (self.num_movers, 3)
-            qpos[2] -= self.mover_size[mover_idx, 2]
+            raise ValueError(INVALID_MOVER_SHAPE_ERROR)
 
         return qpos + self.rng_noise.normal(loc=0.0, scale=self.std_noise[0] * int(add_noise), size=qpos.shape[0])
 
@@ -767,11 +836,87 @@ class BasicPlanarRoboticsEnv:
         qacc = mujoco_utils.get_joint_qacc(self.model, self.data, joint_name)
         return qacc + self.rng_noise.normal(loc=0.0, scale=self.std_noise[2] * int(add_noise), size=qacc.shape[0])
 
+    def _generate_mover_xml_strings(
+        self,
+        idx_mover: int,
+        x_pos: float,
+        y_pos: float,
+        z_pos: float,
+        material: str,
+        mass: float,
+        size: np.ndarray,
+        shape: str,
+    ) -> tuple[str | None, str]:
+        """Generate MuJoCo XML asset and body strings for creating mover objects in the simulation.
+
+        :return: A tuple containing an XML string for mesh assets (None for basic shapes) and an XML
+        string defining the mover body and its properties.
+        """
+        assert size.shape == (3,), f'Size must have shape (3,), got shape {size.shape}.'
+
+        if shape == 'box':
+            asset_str = None
+            body_str = (
+                f'\n\t\t<body name="mover_{idx_mover}" pos="{x_pos} {y_pos} {z_pos:.5f}" gravcomp="1">'
+                + f'\n\t\t\t<joint name="mover_joint_{idx_mover}" type="free" damping="0" />'
+                + f'\n\t\t\t<geom name="mover_geom_{idx_mover}" type="box" '
+                + f'size="{size[0]} {size[1]} {size[2]}" mass="{mass}" pos="0 0 0" '
+                + f'material="{material}"/>'
+                + '\n\t\t</body>'
+            )
+        elif shape == 'cylinder':
+            asset_str = None
+            body_str = (
+                f'\n\t\t<body name="mover_{idx_mover}" pos="{x_pos} {y_pos} {z_pos:.5f}" gravcomp="1">'
+                + f'\n\t\t\t<joint name="mover_joint_{idx_mover}" type="free" damping="0" />'
+                + f'\n\t\t\t<geom name="mover_geom_{idx_mover}" type="cylinder" '
+                + f'size="{size[0]} {size[1]}" mass="{mass}" pos="0 0 0" '
+                + f'material="{material}"/>'
+                + '\n\t\t</body>'
+            )
+        elif shape == 'mesh':
+            mover_mesh_name = f'mover_mesh_{idx_mover}'
+            bumper_mesh_name = f'bumper_mesh_{idx_mover}'
+
+            asset_str = (
+                f'\n\t\t<mesh name="{mover_mesh_name}" file="{self.mover_mesh_mover_stl_path}"'
+                f' scale="{size[0]} {size[1]} {size[2]}" />'
+            )
+
+            body_str = (
+                f'\n\t\t<body name="mover_{idx_mover}" pos="{x_pos} {y_pos} {z_pos:.5f}" gravcomp="1">'
+                + f'\n\t\t\t<joint name="mover_joint_{idx_mover}" type="free" damping="0" />'
+                + f'\n\t\t\t<geom name="mover_geom_{idx_mover}" type="mesh" mesh="{mover_mesh_name}" '
+                + f'mass="{mass}" pos="0 0 0" material="{material}"/>'
+            )
+
+            if self.mover_mesh_bumper_stl_path is not None:
+                asset_str += (
+                    f'\n\t\t<mesh name="{bumper_mesh_name}" file="{self.mover_mesh_bumper_stl_path}"'
+                    f' scale="{size[0]} {size[1]} {size[2]}" />'
+                )
+
+                if isinstance(self.mover_mesh_bumper_mass, np.ndarray):
+                    bumper_mass = self.mover_mesh_bumper_mass[idx_mover]
+                else:
+                    bumper_mass = self.mover_mesh_bumper_mass
+
+                body_str += (
+                    f'\n\t\t\t<geom name="bumper_geom_{idx_mover}" type="mesh" mesh="{bumper_mesh_name}" '
+                    f'mass="{bumper_mass}" pos="0 0 0" material="black"/>'
+                )
+
+            body_str += '\n\t\t</body>'
+        else:
+            raise ValueError(INVALID_MOVER_SHAPE_ERROR)
+
+        return (asset_str, body_str)
+
     def generate_model_xml_string(
         self,
         mover_start_xy_pos: np.ndarray | None = None,
         mover_goal_xy_pos: np.ndarray | None = None,
-        custom_xml_strings: dict[str, str] = None,
+        custom_xml_strings: dict[str, str] | None = None,
     ) -> str:
         """Generate a MuJoCo model xml string based on the mover-tile configuration of the environment.
 
@@ -863,14 +1008,23 @@ class BasicPlanarRoboticsEnv:
 
         # movers and correspondig goals and actuators
         material_str_list = ['green', 'blue', 'orange', 'red', 'yellow', 'light_blue']
+        mover_asset_xml_strs = ''
         mover_xml_str = ''
         num_goal_movers = mover_goal_xy_pos.shape[0] if mover_goal_xy_pos is not None else 0
 
         for idx_mover in range(0, self.num_movers):
-            if self.mover_size.shape == (3,):
-                mover_size = self.mover_size.copy()
+            if isinstance(self.mover_shape, list):
+                mover_shape = self.mover_shape[idx_mover]
             else:
-                mover_size = self.mover_size[idx_mover, :].copy()
+                mover_shape = self.mover_shape
+
+            if mover_shape == 'box' or mover_shape == 'cylinder':
+                mover_size = self.resolved_mover_size[idx_mover, :].copy()
+            elif mover_shape == 'mesh':
+                # We need the scale, not the size, so we can't use resolved_mover_size here.
+                mover_size = self.mover_size[idx_mover, :].copy() if len(self.mover_size.shape) == 2 else self.mover_size.copy()
+            else:
+                raise ValueError(INVALID_MOVER_SHAPE_ERROR)
 
             if isinstance(self.mover_mass, np.ndarray):
                 mover_mass = self.mover_mass[idx_mover]
@@ -878,17 +1032,25 @@ class BasicPlanarRoboticsEnv:
                 mover_mass = self.mover_mass
 
             is_obstacle = idx_mover >= num_goal_movers
-            # choose color
-            if is_obstacle:
-                material_str = 'gray'
-            else:
-                if idx_mover <= (len(material_str_list) - 1):
-                    material_str = material_str_list[idx_mover]
-                else:
-                    material_str = material_str_list[-1]
 
-            z_pos = self.initial_mover_zpos + mover_size[2]
-            joint_name = f'mover_joint_{idx_mover}'
+            if isinstance(self.mover_material, list):
+                material_str = self.mover_material[min(idx_mover, len(self.mover_material) - 1)]
+            elif isinstance(self.mover_material, str):
+                material_str = self.mover_material
+            else:
+                # choose color
+                if is_obstacle:
+                    material_str = 'gray'
+                else:
+                    material_str = material_str_list[min(idx_mover, len(material_str_list) - 1)]
+
+            if mover_shape == 'box' or mover_shape == 'mesh':
+                z_pos = self.initial_mover_zpos + self.resolved_mover_size[idx_mover, 2]
+            elif mover_shape == 'cylinder':
+                z_pos = self.initial_mover_zpos + mover_size[1]
+            else:
+                raise ValueError(INVALID_MOVER_SHAPE_ERROR)
+
             if mover_start_xy_pos is None:
                 mover_xpos = valid_xy_pos_mover[idx_mover][0]
                 mover_ypos = valid_xy_pos_mover[idx_mover][1]
@@ -896,14 +1058,21 @@ class BasicPlanarRoboticsEnv:
                 mover_xpos = mover_start_xy_pos[idx_mover, 0]
                 mover_ypos = mover_start_xy_pos[idx_mover, 1]
 
-            mover_xml_str += (
-                f'\n\t\t<body name="mover_{idx_mover}" pos="{mover_xpos} {mover_ypos} {z_pos:.5f}" gravcomp="1">'
-                + f'\n\t\t\t<joint name="{joint_name}" type="free" damping="0" />'
-                + f'\n\t\t\t<geom name="mover_geom_{idx_mover}" type="box" '
-                + f'size="{mover_size[0]} {mover_size[1]} {mover_size[2]}" mass="{mover_mass}" pos="0 0 0" '
-                + f'material="{material_str}"/>'
-                + '\n\t\t</body>'
+            mover_asset_xml_str, mover_body_xml_str = self._generate_mover_xml_strings(
+                idx_mover,
+                mover_xpos,
+                mover_ypos,
+                z_pos,
+                material_str,
+                mover_mass,
+                mover_size,
+                mover_shape,
             )
+
+            if mover_asset_xml_str is not None:
+                mover_asset_xml_strs += mover_asset_xml_str
+
+            mover_xml_str += mover_body_xml_str
 
             # visualize goal positions
             if mover_goal_xy_pos is not None and not is_obstacle:
@@ -928,7 +1097,7 @@ class BasicPlanarRoboticsEnv:
         xml += '\n<mujoco model="planar_robotics">'
         # compiler
         if custom_compiler_xml_str is None:
-            xml += '\n\t<compiler angle="radian" coordinate="local"/>'
+            xml += f'\n\t<compiler angle="radian" coordinate="local" meshdir="{Path(__file__).parent.resolve() / "assets"}" />'
         else:
             xml += custom_compiler_xml_str
         # visual
@@ -963,6 +1132,7 @@ class BasicPlanarRoboticsEnv:
             + '\n\t\t<material name="line_mat" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.5 0.5 0.5 1"/>'
             + '\n\t\t<texture name="texplane" builtin="flat" height="256" width="256" rgb1=".8 .8 .8" rgb2=".8 .8 .8" />'
             + '\n\t\t<texture type="skybox" builtin="gradient" rgb1="0.8 0.898 1" rgb2="0.8 0.898 1" width="32" height="32" />'
+            + mover_asset_xml_strs
             + custom_assets_xml_str
             + '\n\t</asset>'
         )
@@ -1184,8 +1354,8 @@ class BasicPlanarRoboticsEnv:
         # check mover size
         assert (self.mover_size > 0).all(), 'Mover size must be >0.'
         assert self.mover_size.shape == (3,) or self.mover_size.shape == (self.num_movers, 3), (
-            'Unexpected mover size. Use a numpy array of shape (3,) (length x, length y, height) for equally sized movers '
-            + 'and a numpy array of shape (num_movers,3) to specify an individual size for each mover.'
+            'Unexpected mover size. Use a numpy array of shape (3,) for equally sized movers '
+            'and a numpy array of shape (num_movers, 3) to specify an individual size for each mover.'
         )
 
         # check mover mass
@@ -1219,6 +1389,20 @@ class BasicPlanarRoboticsEnv:
             )
         # fmt: on
 
+        # check that the mover shape is valid
+        valid_shapes = ['box', 'cylinder', 'mesh']
+        if isinstance(self.mover_shape, list):
+            assert all(shape in valid_shapes for shape in self.mover_shape), (
+                "Invalid mover shape. Must be one of: 'box', 'cylinder', 'mesh'."
+            )
+        else:
+            assert self.mover_shape in valid_shapes, (
+                f"Invalid mover shape '{self.mover_shape}'. Must be one of: 'box', 'cylinder', 'mesh'."
+            )
+
+        # check mover mesh params
+        assert self.mover_mesh_bumper_mass >= 0, 'Bumper mass must be non-negative.'
+
     def _check_collision_params(self) -> None:
         """Check that the collision shape and the size of the collision shape are as expected."""
         # check collision shape
@@ -1239,12 +1423,19 @@ class BasicPlanarRoboticsEnv:
 
         # check size of collision shape
         for idx_mover in range(0, self.num_movers):
-            if self.mover_size.shape == (3,):
-                mover_size_x = self.mover_size[0]
-                mover_size_y = self.mover_size[1]
+            if isinstance(self.mover_shape, list):
+                mover_shape = self.mover_shape[idx_mover]
+            else:  # isinstance(self.mover_shape, str)
+                mover_shape = self.mover_shape
+
+            if mover_shape == 'box' or mover_shape == 'mesh':
+                mover_size_x = self.resolved_mover_size[idx_mover, 0]
+                mover_size_y = self.resolved_mover_size[idx_mover, 1]
+            elif mover_shape == 'cylinder':
+                mover_size_x = self.resolved_mover_size[idx_mover, 0]
+                mover_size_y = self.resolved_mover_size[idx_mover, 0]
             else:
-                mover_size_x = self.mover_size[idx_mover, 0]
-                mover_size_y = self.mover_size[idx_mover, 1]
+                raise ValueError(INVALID_MOVER_SHAPE_ERROR)
 
             if self.c_shape == 'circle':
                 c_size = self.c_size[idx_mover] if isinstance(self.c_size, np.ndarray) else self.c_size
@@ -1289,6 +1480,123 @@ class BasicPlanarRoboticsEnv:
                 )
         # fmt: on
 
+    def _find_mesh_dimensions(self, asset_xml_str: str | None, body_xml_str: str) -> np.ndarray:
+        """Compute the axis-aligned bounding box dimensions of a mesh.
+
+        This function creates a temporary MuJoCo model from the provided XML strings,
+        simulates one step, and computes the bounding box dimensions by analyzing vertex
+        positions of all mesh geoms attached to the specified body.
+
+        Note: The function assumes all geoms are of type mesh and are attached to a body
+        named 'mover_0'.
+        """
+        model_xml_str = f"""<?xml version="1.0" encoding="utf-8"?>
+        <mujoco model="planar_robotics">
+            <compiler angle="radian" coordinate="local" meshdir="{Path(__file__).parent.resolve() / 'assets'}" />
+
+            <asset>
+                <material name="black" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.25 0.25 0.25 1" />
+                {asset_xml_str}
+            </asset>
+
+            <worldbody>{body_xml_str}</worldbody>
+        </mujoco>"""
+
+        model = mujoco.MjModel.from_xml_string(model_xml_str)  # type: ignore
+        data = mujoco.MjData(model)  # type: ignore
+        mujoco.mj_step(model, data, nstep=1)  # type: ignore
+
+        body_id = model.body('mover_0').id
+        body_vertices = []
+
+        for geom_id in range(model.ngeom):
+            if model.geom_bodyid[geom_id] != body_id:
+                continue
+
+            assert model.geom_type[geom_id] == mujoco.mjtGeom.mjGEOM_MESH  # type: ignore
+
+            mesh_id = model.geom_dataid[geom_id]
+
+            geom_xpos = data.geom_xpos[geom_id]
+            geom_xmat = data.geom_xmat[geom_id].reshape(3, 3).T
+
+            vertadr = model.mesh_vertadr[mesh_id]
+            vertnum = model.mesh_vertnum[mesh_id]
+
+            vert = model.mesh_vert[vertadr : vertadr + vertnum]
+            vert_xpos = geom_xpos + vert @ geom_xmat
+
+            body_vertices.append(vert_xpos)
+
+        # Just to make sure there's at least one vertex.
+        assert body_vertices
+
+        body_vertices = np.vstack(body_vertices)
+
+        return np.max(body_vertices, axis=0) - np.min(body_vertices, axis=0)
+
+    def _resolve_mover_size(self, mover_size: np.ndarray, mover_shape: str | list[str]) -> np.ndarray:
+        """Resolve input size parameters to physical dimensions.
+
+        This function handles the conversion between specified sizes and actual physical dimensions,
+        which is particularly important for mesh geoms where MuJoCo allows scaling rather than direct
+        size specification.
+
+        Note: Fox 'box' and 'cylinder' shapes, the input sizes are used directly. For 'mesh' shapes,
+        the function simulates the mesh to determine its actual dimensions based on the scaling
+        parameters. All dimensions are half-sizes.
+        """
+        resolved_mover_size = np.zeros((self.num_movers, 3))
+
+        for mover_idx in range(self.num_movers):
+            if mover_size.shape == (3,):
+                _mover_size = mover_size
+            elif mover_size.shape == (self.num_movers, 3):
+                _mover_size = mover_size[mover_idx]
+            else:
+                raise ValueError(f'Size must either be of shape (3,) or (num_movers, 3), but is {mover_size.shape}.')
+
+            if isinstance(mover_shape, str):
+                _mover_shape = mover_shape
+            elif isinstance(mover_shape, list):
+                _mover_shape = mover_shape[mover_idx]
+            else:
+                raise ValueError(f'Shape must be specified as either a `str` or a `list[str]`, but is {type(mover_shape)}.')
+
+            if _mover_shape == 'box' or _mover_shape == 'cylinder':
+                resolved_mover_size[mover_idx] = _mover_size
+            elif _mover_shape == 'mesh':
+                asset_xml_str, body_xml_str = self._generate_mover_xml_strings(0, 0, 0, 0, '', 1, _mover_size, _mover_shape)
+                resolved_mover_size[mover_idx] = self._find_mesh_dimensions(asset_xml_str, body_xml_str) / 2  # half-sized
+
+        return resolved_mover_size
+
+    def _resolve_mesh_path(self, path: str) -> str | None:
+        """Resolve a mesh path string to a Path object, either from predefined
+        meshes or as a direct path.
+        """
+        predefined_meshes = {
+            'beckhoff_apm4220_mover',
+            'beckhoff_apm4220_bumper',
+            'beckhoff_apm4330_mover',
+            'beckhoff_apm4330_bumper',
+            'beckhoff_apm4550_mover',
+            'beckhoff_apm4550_bumper',
+            'planar_motor_M3-06',
+            'planar_motor_M3-15',
+            'planar_motor_M3-25',
+            'planar_motor_M4-11',
+            'planar_motor_M4-18',
+        }
+
+        if path is None:
+            return None
+
+        if path in predefined_meshes:
+            return f'./{path}.stl'
+
+        return path
+
 
 class BasicPlanarRoboticsMultiAgentEnv(BasicPlanarRoboticsEnv, ParallelEnv):
     """A base class for multi-agent reinforcement learning environments in the field of planar robotics that follow the PettingZoo
@@ -1319,16 +1627,16 @@ class BasicPlanarRoboticsMultiAgentEnv(BasicPlanarRoboticsEnv, ParallelEnv):
         self,
         layout_tiles: np.ndarray,
         num_movers: int,
-        tile_params: dict[str, any] | None = None,
-        mover_params: dict[str, any] | None = None,
+        tile_params: dict[str, Any] | None = None,
+        mover_params: dict[str, Any] | None = None,
         initial_mover_zpos: float = 0.005,
         table_height: float = 0.4,
         std_noise: np.ndarray | float = 1e-5,
         render_mode: str | None = 'human',
-        default_cam_config: dict[str, any] | None = None,
+        default_cam_config: dict[str, Any] | None = None,
         width_no_camera_specified: int = 1240,
         height_no_camera_specified: int = 1080,
-        collision_params: dict[str, any] | None = None,
+        collision_params: dict[str, Any] | None = None,
         initial_mover_start_xy_pos: np.ndarray | None = None,
         initial_mover_goal_xy_pos: np.ndarray | None = None,
         custom_model_xml_strings: dict[str, str] | None = None,
@@ -1391,18 +1699,18 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
         self,
         layout_tiles: np.ndarray,
         num_movers: int,
-        tile_params: dict[str, any] | None = None,
-        mover_params: dict[str, any] | None = None,
+        tile_params: dict[str, Any] | None = None,
+        mover_params: dict[str, Any] | None = None,
         initial_mover_zpos: float = 0.005,
         table_height: float = 0.4,
         std_noise: np.ndarray | float = 1e-5,
         render_mode: str | None = 'human',
         render_every_cycle: bool = False,
-        default_cam_config: dict[str, any] | None = None,
+        default_cam_config: dict[str, Any] | None = None,
         width_no_camera_specified: int = 1240,
         height_no_camera_specified: int = 1080,
         num_cycles: int = 40,
-        collision_params: dict[str, any] | None = None,
+        collision_params: dict[str, Any] | None = None,
         initial_mover_start_xy_pos: np.ndarray | None = None,
         initial_mover_goal_xy_pos: np.ndarray | None = None,
         custom_model_xml_strings: dict[str, str] | None = None,
@@ -1431,7 +1739,7 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
         # number of control cycles for which to apply the same action
         self.num_cycles = num_cycles
 
-    def reset(self, seed: int | None = None, options: dict[str, any] | None = None) -> tuple[dict[str, np.ndarray], dict[str, any]]:
+    def reset(self, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
         """Reset the environment returning an initial observation and auxiliary information. More detailed information about the
         parameters and return values can be found in the Gymnasium documentation:
         https://gymnasium.farama.org/api/env/#gymnasium.Env.reset.
@@ -1485,7 +1793,7 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
 
         return observation, info
 
-    def step(self, action: int | np.ndarray) -> tuple[dict[str, np.ndarray], float, bool, bool, dict[str, any]]:
+    def step(self, action: int | np.ndarray) -> tuple[dict[str, np.ndarray], float, bool, bool, dict[str, Any]]:
         """Execute one step of the environment's dynamics applying the given action.
         Note that the environment executes as many MuJoCo simulation steps as the number of cycles specified for this environment
         (``num_cycles``). The duration of one cycle is determined by the cycle time, which must be specified in the MuJoCo xml
@@ -1581,7 +1889,7 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
 
         return observation, reward, terminated, truncated, info
 
-    def _reset_callback(self, options: dict[str, any] | None = None) -> None:
+    def _reset_callback(self, options: dict[str, Any] | None = None) -> None:
         """A callback that should be used to add further functionality to the ``reset()`` method (see documentation of the ``reset()``
         method for more information about when the callback is called).
 
@@ -1607,7 +1915,7 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
 
     @abstractmethod
     def compute_terminated(
-        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, any] | None = None
+        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, Any] | None = None
     ) -> np.ndarray | bool:
         """Check whether a terminal state is reached. This method can be used for both goal-conditioned RL and standard RL.
         Since Hindsight Experience Replay (HER) is commonly used in goal-conditioned RL, this method receives
@@ -1626,7 +1934,7 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
 
     @abstractmethod
     def compute_truncated(
-        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, any] | None = None
+        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, Any] | None = None
     ) -> np.ndarray | bool:
         """Check whether the truncation condition is satisfied. This method can be used for both goal-conditioned RL and standard RL.
         Since Hindsight Experience Replay (HER) is commonly used in goal-conditioned RL, this method receives
@@ -1645,7 +1953,7 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
 
     @abstractmethod
     def compute_reward(
-        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, any] | None = None
+        self, achieved_goal: np.ndarray | None = None, desired_goal: np.ndarray | None = None, info: dict[str, Any] | None = None
     ) -> np.ndarray | float:
         """Compute the immediate reward. This method is required by the stable-baselines3 implementation of Hindsight Experience
         Replay (HER) (for more information, see https://stable-baselines3.readthedocs.io/en/master/modules/her.html).
@@ -1674,7 +1982,7 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
         wall_collision: bool,
         achieved_goal: np.ndarray | None = None,
         desired_goal: np.ndarray | None = None,
-    ) -> dict[str, any]:
+    ) -> dict[str, Any]:
         """Return a dictionary that contains auxiliary information that may depend on the 'achieved_goal' and 'desired_goal' in
         goal-conditioned RL.
 
