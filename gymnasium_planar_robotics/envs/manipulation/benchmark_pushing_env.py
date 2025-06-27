@@ -378,13 +378,17 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
 
         :param options: not used in this environment
         """
+        if options is None:
+            options = {}
         # sample new mover start positions
         start_qpos = np.zeros((self.num_movers, 7))
         start_qpos[:, 2] = self.initial_mover_zpos
         start_qpos[:, 3] = 1  # quaternion (1,0,0,0)
 
         # choose a new start position for the mover
-        start_qpos[:, :2] = self.np_random.uniform(low=self.min_xy_pos, high=self.max_xy_pos, size=(self.num_movers, 2))
+        start_qpos[:, :2] = options.get(
+            'mover_start_xy_pos', self.np_random.uniform(low=self.min_xy_pos, high=self.max_xy_pos, size=(self.num_movers, 2))
+        )
 
         # sample a new start position for the object and ensure that it does not collide with the mover
         counter = 0
@@ -404,8 +408,10 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
 
         self.object_xy_start_pos = self.object_xy_start_pos.flatten()
 
-        # sample a new goal position for the object
-        self.object_xy_goal_pos = self.np_random.uniform(low=self.object_min_xy_pos, high=self.object_max_xy_pos, size=(2,))
+        # sample a new goal position for the object or set a pre-defined goal position
+        self.object_xy_goal_pos = options.get(
+            'object_goal_xy_pos', self.np_random.uniform(low=self.object_min_xy_pos, high=self.object_max_xy_pos, size=(2,))
+        )
 
         # reload model with new start pos and goal pos
         self.reload_model(mover_start_xy_pos=start_qpos[:, :2])

@@ -1,6 +1,13 @@
 Changelog
 =========
 
+Release v1.1.1a0 (2025-06-27)
+-----------------------------
+
+General
+^^^^^^^
+1. ``BenchmarkPushingEnv``: add the option to set a specific start position of the mover and a specific goal position of the object when resetting the environment
+
 Release v1.1.0 (2025-06-17)
 ---------------------------
 
