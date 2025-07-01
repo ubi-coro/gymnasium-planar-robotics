@@ -238,7 +238,6 @@ class BasicPlanarRoboticsEnv:
         self.mover_mesh_scale = mover_mesh.get('scale', np.array([1, 1, 1]))
 
         self.initial_mover_zpos = initial_mover_zpos
-        self._check_mover_config(initial_mover_start_xy_pos, initial_mover_goal_xy_pos)
 
         if self.mover_shape == 'mesh' and 'size' in mover_params:
             logger.warn(
@@ -252,6 +251,8 @@ class BasicPlanarRoboticsEnv:
             self.mover_mesh_scale,
             self.mover_shape,
         )
+
+        self._check_mover_config(initial_mover_start_xy_pos, initial_mover_goal_xy_pos)
 
         # collision detection
         if collision_params is None:
