@@ -80,7 +80,7 @@ class BasicPlanarRoboticsEnv:
                 - 1D array (num_movers,): Individual masses for each bumper
 
                 Default: 0.1 [kg]
-                - scale (numpy.ndarray): Scale factors for mesh dimensions (x, y, z). Applied multiplicatively to
+                - scale (numpy.ndarray): Scale factors for mesh dimensions (x, y, z). Multiplied with the
                     mesh geometry. Specification options:
                     - 1D array (3,): Same scale factors applied to all movers
                     - 2D array (num_movers, 3): Individual scale factors for each mover
