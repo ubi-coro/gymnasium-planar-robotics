@@ -79,7 +79,7 @@ class BasicPlanarRoboticsEnv:
                 - Single float: Same mass applied to all bumpers
                 - 1D array (num_movers,): Individual masses for each bumper
 
-                Default: 0.1 [kg]
+                Default: 0.028 [kg]
             - scale (numpy.ndarray): Scale factors for mesh dimensions (x, y, z). Multiplied with the
                 mesh geometry. Specification options:
                 - 1D array (3,): Same scale factors applied to all movers
@@ -234,7 +234,7 @@ class BasicPlanarRoboticsEnv:
         mover_mesh = mover_params.get('mesh', {})
         self.mover_mesh_mover_stl_path = self._resolve_mesh_path(mover_mesh.get('mover_stl_path', 'beckhoff_apm4330_mover'))
         self.mover_mesh_bumper_stl_path = self._resolve_mesh_path(mover_mesh.get('bumper_stl_path', 'beckhoff_apm4330_bumper'))
-        self.mover_mesh_bumper_mass = mover_mesh.get('bumper_mass', 0.1)
+        self.mover_mesh_bumper_mass = mover_mesh.get('bumper_mass', 0.028)
         self.mover_mesh_scale = mover_mesh.get('scale', np.array([1, 1, 1]))
 
         self.initial_mover_zpos = initial_mover_zpos
