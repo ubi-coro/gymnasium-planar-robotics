@@ -1,6 +1,14 @@
 Changelog
 =========
 
+Release v1.1.1a1 (2025-06-27)
+-----------------------------
+
+General
+^^^^^^^^^
+1. ``BasicPlanarRoboticsEnv``: Add an parameter to specify the scale for a mover mesh separately from the size option :spelling:ignore:`(@cedricgrothues)`
+
+
 Release v1.1.1a0 (2025-06-27)
 -----------------------------
 

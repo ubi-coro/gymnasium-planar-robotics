@@ -450,7 +450,7 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
         self.impedance_controller.update(
             model=self.model,
             data=self.data,
-            pos_d=np.array([0, 0, self.initial_mover_zpos + self.mover_size[2]]),
+            pos_d=np.array([0, 0, self.initial_mover_zpos + self.mover_size[0, 2]]),
             quat_d=np.array([1, 0, 0, 0]),
         )
 

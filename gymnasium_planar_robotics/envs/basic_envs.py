@@ -53,7 +53,7 @@ class BasicPlanarRoboticsEnv:
         - size (numpy.ndarray): Shape dimensions in meters. Format depends on shape:
             - For 'box': Half-sizes (x, y, z)
             - For 'cylinder': (radius, height, _)
-            - For 'mesh': Scale factors (x, y, z)
+            - For 'mesh': Computed from mesh dimensions multiplied by scale factors in mesh['scale']
 
             Specification options:
             - 1D array (3,): Same size for all movers
@@ -80,6 +80,12 @@ class BasicPlanarRoboticsEnv:
                 - 1D array (num_movers,): Individual masses for each bumper
 
                 Default: 0.1 [kg]
+            - scale (numpy.ndarray): Scale factors for mesh dimensions (x, y, z). Multiplied with the
+                mesh geometry. Specification options:
+                - 1D array (3,): Same scale factors applied to all movers
+                - 2D array (num_movers, 3): Individual scale factors for each mover
+
+                Default: [1.0, 1.0, 1.0] (no scaling)
 
         - material (str | list[str]): Material name to apply to the mover. Can be specified as:
             - Single string: Same material for all movers
@@ -221,7 +227,6 @@ class BasicPlanarRoboticsEnv:
         )
         if mover_params is None:
             mover_params = {}
-        self.mover_size = mover_params.get('size', np.array([0.155 / 2, 0.155 / 2, 0.012 / 2]))
         self.mover_mass = mover_params.get('mass', 1.24)
         self.mover_shape = mover_params.get('shape', 'box')
         self.mover_material = mover_params.get('material')
@@ -230,11 +235,24 @@ class BasicPlanarRoboticsEnv:
         self.mover_mesh_mover_stl_path = self._resolve_mesh_path(mover_mesh.get('mover_stl_path', 'beckhoff_apm4330_mover'))
         self.mover_mesh_bumper_stl_path = self._resolve_mesh_path(mover_mesh.get('bumper_stl_path', 'beckhoff_apm4330_bumper'))
         self.mover_mesh_bumper_mass = mover_mesh.get('bumper_mass', 0.1)
+        self.mover_mesh_scale = mover_mesh.get('scale', np.array([1, 1, 1]))
 
         self.initial_mover_zpos = initial_mover_zpos
-        self._check_mover_config(initial_mover_start_xy_pos, initial_mover_goal_xy_pos)
 
-        self.resolved_mover_size = self._resolve_mover_size(self.mover_size, self.mover_shape)
+        if self.mover_shape == 'mesh' and 'size' in mover_params:
+            logger.warn(
+                "Size parameter specified for mesh-based mover shape. "
+                "For mesh shapes, size is computed from mesh dimensions multiplied by scale factors. "
+                "The 'size' parameter will be ignored."
+            )
+
+        self.mover_size = self._resolve_mover_size(
+            mover_params.get('size', np.array([0.155 / 2, 0.155 / 2, 0.012 / 2])),
+            self.mover_mesh_scale,
+            self.mover_shape,
+        )
+
+        self._check_mover_config(initial_mover_start_xy_pos, initial_mover_goal_xy_pos)
 
         # collision detection
         if collision_params is None:
@@ -801,9 +819,9 @@ class BasicPlanarRoboticsEnv:
             shape = self.mover_shape
 
         if shape == 'box' or shape == 'mesh':  # height at index 2
-            qpos[2] -= self.resolved_mover_size[mover_idx, 2]
+            qpos[2] -= self.mover_size[mover_idx, 2]
         elif shape == 'cylinder':  # height at index 1
-            qpos[2] -= self.resolved_mover_size[mover_idx, 1]
+            qpos[2] -= self.mover_size[mover_idx, 1]
         else:
             raise ValueError(INVALID_MOVER_SHAPE_ERROR)
 
@@ -1019,10 +1037,13 @@ class BasicPlanarRoboticsEnv:
                 mover_shape = self.mover_shape
 
             if mover_shape == 'box' or mover_shape == 'cylinder':
-                mover_size = self.resolved_mover_size[idx_mover, :].copy()
+                mover_size = self.mover_size[idx_mover, :].copy()
             elif mover_shape == 'mesh':
-                # We need the scale, not the size, so we can't use resolved_mover_size here.
-                mover_size = self.mover_size[idx_mover, :].copy() if len(self.mover_size.shape) == 2 else self.mover_size.copy()
+                mover_size = (
+                    self.mover_mesh_scale[idx_mover, :].copy()
+                    if len(self.mover_mesh_scale.shape) == 2
+                    else self.mover_mesh_scale.copy()
+                )
             else:
                 raise ValueError(INVALID_MOVER_SHAPE_ERROR)
 
@@ -1045,7 +1066,7 @@ class BasicPlanarRoboticsEnv:
                     material_str = material_str_list[min(idx_mover, len(material_str_list) - 1)]
 
             if mover_shape == 'box' or mover_shape == 'mesh':
-                z_pos = self.initial_mover_zpos + self.resolved_mover_size[idx_mover, 2]
+                z_pos = self.initial_mover_zpos + self.mover_size[idx_mover, 2]
             elif mover_shape == 'cylinder':
                 z_pos = self.initial_mover_zpos + mover_size[1]
             else:
@@ -1429,11 +1450,11 @@ class BasicPlanarRoboticsEnv:
                 mover_shape = self.mover_shape
 
             if mover_shape == 'box' or mover_shape == 'mesh':
-                mover_size_x = self.resolved_mover_size[idx_mover, 0]
-                mover_size_y = self.resolved_mover_size[idx_mover, 1]
+                mover_size_x = self.mover_size[idx_mover, 0]
+                mover_size_y = self.mover_size[idx_mover, 1]
             elif mover_shape == 'cylinder':
-                mover_size_x = self.resolved_mover_size[idx_mover, 0]
-                mover_size_y = self.resolved_mover_size[idx_mover, 0]
+                mover_size_x = self.mover_size[idx_mover, 0]
+                mover_size_y = self.mover_size[idx_mover, 0]
             else:
                 raise ValueError(INVALID_MOVER_SHAPE_ERROR)
 
@@ -1535,7 +1556,7 @@ class BasicPlanarRoboticsEnv:
 
         return np.max(body_vertices, axis=0) - np.min(body_vertices, axis=0)
 
-    def _resolve_mover_size(self, mover_size: np.ndarray, mover_shape: str | list[str]) -> np.ndarray:
+    def _resolve_mover_size(self, mover_size: np.ndarray, mover_mesh_scale: np.ndarray, mover_shape: str | list[str]) -> np.ndarray:
         """Resolve input size parameters to physical dimensions.
 
         This function handles the conversion between specified sizes and actual physical dimensions,
@@ -1556,6 +1577,13 @@ class BasicPlanarRoboticsEnv:
             else:
                 raise ValueError(f'Size must either be of shape (3,) or (num_movers, 3), but is {mover_size.shape}.')
 
+            if mover_mesh_scale.shape == (3,):
+                _mover_mesh_scale = mover_mesh_scale
+            elif mover_size.shape == (self.num_movers, 3):
+                _mover_mesh_scale = mover_mesh_scale[mover_idx]
+            else:
+                raise ValueError(f'Scale must either be of shape (3,) or (num_movers, 3), but is {mover_mesh_scale.shape}.')
+
             if isinstance(mover_shape, str):
                 _mover_shape = mover_shape
             elif isinstance(mover_shape, list):
@@ -1566,7 +1594,7 @@ class BasicPlanarRoboticsEnv:
             if _mover_shape == 'box' or _mover_shape == 'cylinder':
                 resolved_mover_size[mover_idx] = _mover_size
             elif _mover_shape == 'mesh':
-                asset_xml_str, body_xml_str = self._generate_mover_xml_strings(0, 0, 0, 0, '', 1, _mover_size, _mover_shape)
+                asset_xml_str, body_xml_str = self._generate_mover_xml_strings(0, 0, 0, 0, '', 1, _mover_mesh_scale, _mover_shape)
                 resolved_mover_size[mover_idx] = self._find_mesh_dimensions(asset_xml_str, body_xml_str) / 2  # half-sized
 
         return resolved_mover_size
