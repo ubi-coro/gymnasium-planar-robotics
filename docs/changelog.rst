@@ -1,6 +1,14 @@
 Changelog
 =========
 
+Release v1.1.1a2 (2025-07-29)
+-----------------------------
+
+General
+^^^^^^^^^
+1. ``BasicPlanarRoboticsEnv``: Add a parameter to specify the tile sliding friction :spelling:ignore:`(@cedricgrothues)`
+
+
 Release v1.1.1a1 (2025-06-27)
 -----------------------------
 

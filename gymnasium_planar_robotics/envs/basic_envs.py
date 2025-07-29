@@ -28,13 +28,15 @@ class BasicPlanarRoboticsEnv:
         and 0 to leave cell empty). The x-axis and y-axis correspond to the axes of the numpy array, so the origin of the base
         frame is in the upper left corner.
     :param num_movers: the number of movers to add
-    :param tile_params: a dictionary that can be used to specify the mass and size of a tile using the keys 'mass' or 'size',
-        defaults to None. Since one planar motor system usually only contains tiles of one type, i.e. with the same mass and size,
-        the mass is a single float value and the size must be specified as a numpy array of shape (3,). If set to None or only one
-        key is specified, both mass and size or the missing value are set to the following default values:
+    :param tile_params: a dictionary that can be used to specify the mass, size, and sliding friction of a tile using the keys 'mass',
+        'size', or 'friction', defaults to None. Since one planar motor system usually only contains tiles of one type, i.e. with the
+        same mass, size, and friction, the mass is a single float value, the size must be specified as a numpy array of shape (3,), and
+        the sliding friction is a single float value. If set to None or only some keys are specified, both mass and size or the missing
+        values are set to the following default values:
 
         - mass: 5.6 [kg]
         - size: [0.24/2, 0.24/2, 0.0352/2] (x,y,z) [m] (note: half-size)
+        - friction: if not specified, MuJoCo's default sliding friction coefficient is used
     :param mover_params: Dictionary specifying mover properties. If None, default values are used. Supported keys:
 
         - mass (float | numpy.ndarray): Mass in kilograms. Options:
@@ -200,6 +202,7 @@ class BasicPlanarRoboticsEnv:
             tile_params = {}
         self.tile_size = tile_params.get('size', np.array([0.24 / 2, 0.24 / 2, 0.0352 / 2]))
         self.tile_mass = tile_params.get('mass', 5.6)
+        self.tile_friction = tile_params.get('friction', None)
         self.x_pos_tiles, self.y_pos_tiles = self.get_tile_xy_pos()
         self._check_tile_config()
         # remember certain indices that belong to specific structures in the tile layout and are important for collision checking
@@ -1158,13 +1161,15 @@ class BasicPlanarRoboticsEnv:
             + '\n\t</asset>'
         )
 
+        friction_attr = f' friction="{self.tile_friction} 0.005 0.0001"' if self.tile_friction is not None else ''
+
         # default
         xml += (
             '\n\n\t<default>'
             + '\n\t\t<default class="planar_robotics">'
             + '\n\t\t\t<default class="tile">'
             + f'\n\t\t\t\t<geom type="box" size="{self.tile_size[0]} {self.tile_size[1]} {self.tile_size[2]}" '
-            + f'mass="{self.tile_mass}" material="off_white" />'
+            + f'mass="{self.tile_mass}" material="off_white"{friction_attr} />'
             + '\n\t\t\t</default>'
             + '\n\t\t</default>'
             + custom_default_xml_str
