@@ -576,7 +576,13 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
         )
 
     def _get_info(
-        self, mover_collision: bool, wall_collision: bool, achieved_goal: np.ndarray, desired_goal: np.ndarray
+        self,
+        mover_collision: bool,
+        wall_collision: bool,
+        other_collision: bool,
+        achieved_goal: np.ndarray,
+        desired_goal: np.ndarray,
+        collision_info: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Return a dictionary that contains auxiliary information.
 
@@ -585,6 +591,8 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
         :param achieved_goal: a numpy array of shape (length achieved_goal,) containing the already achieved (x,y)-position of the
             object
         :param desired_goal: a numpy array of shape (length achieved_goal,) containing the desired (x,y)-position of the object
+        :param collision_info: a dictionary that is intended to contain additional information about collisions, e.g.
+            collisions with obstacles. Defaults to None
         :return: the info dictionary with keys 'is_success', 'mover_collision' and 'wall_collision'
         """
         assert not mover_collision

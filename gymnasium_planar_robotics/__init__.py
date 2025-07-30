@@ -1,4 +1,4 @@
-__version__ = '1.1.0a1'
+__version__ = '1.1.0a2'
 
 from gymnasium.envs.registration import register
 

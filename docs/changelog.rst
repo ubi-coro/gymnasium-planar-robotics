@@ -1,6 +1,13 @@
 Changelog
 =========
 
+Release v1.1.1a2 (2025-07-30)
+-----------------------------
+
+General
+^^^^^^^^^
+1. Add a callback to the ``BasicPlanarRoboticsSingleAgentEnv`` to allow the user to check for collisions other than collisions with walls or movers, such as collisions with an obstacle. This callback is called in the ``step`` method after each simulation step and in the ``reset`` method. The output of the callback is also forwarded to ``_get_info``, so that information about other collisions can be included in the ``info`` dictionary.
+
 Release v1.1.1a1 (2025-06-27)
 -----------------------------
 

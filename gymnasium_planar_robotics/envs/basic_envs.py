@@ -241,8 +241,8 @@ class BasicPlanarRoboticsEnv:
 
         if self.mover_shape == 'mesh' and 'size' in mover_params:
             logger.warn(
-                "Size parameter specified for mesh-based mover shape. "
-                "For mesh shapes, size is computed from mesh dimensions multiplied by scale factors. "
+                'Size parameter specified for mesh-based mover shape. '
+                'For mesh shapes, size is computed from mesh dimensions multiplied by scale factors. '
                 "The 'size' parameter will be ignored."
             )
 
@@ -1338,6 +1338,130 @@ class BasicPlanarRoboticsEnv:
 
         return np.array(tile_indices_x), np.array(tile_indices_y)
 
+    def _find_mesh_dimensions(self, asset_xml_str: str | None, body_xml_str: str) -> np.ndarray:
+        """Compute the axis-aligned bounding box dimensions of a mesh.
+
+        This function creates a temporary MuJoCo model from the provided XML strings,
+        simulates one step, and computes the bounding box dimensions by analyzing vertex
+        positions of all mesh geoms attached to the specified body.
+
+        Note: The function assumes all geoms are of type mesh and are attached to a body
+        named 'mover_0'.
+        """
+        model_xml_str = f"""<?xml version="1.0" encoding="utf-8"?>
+        <mujoco model="planar_robotics">
+            <compiler angle="radian" coordinate="local" meshdir="{Path(__file__).parent.resolve() / 'assets'}" />
+
+            <asset>
+                <material name="black" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.25 0.25 0.25 1" />
+                {asset_xml_str}
+            </asset>
+
+            <worldbody>{body_xml_str}</worldbody>
+        </mujoco>"""
+
+        model = mujoco.MjModel.from_xml_string(model_xml_str)  # type: ignore
+        data = mujoco.MjData(model)  # type: ignore
+        mujoco.mj_step(model, data, nstep=1)  # type: ignore
+
+        body_id = model.body('mover_0').id
+        body_vertices = []
+
+        for geom_id in range(model.ngeom):
+            if model.geom_bodyid[geom_id] != body_id:
+                continue
+
+            assert model.geom_type[geom_id] == mujoco.mjtGeom.mjGEOM_MESH  # type: ignore
+
+            mesh_id = model.geom_dataid[geom_id]
+
+            geom_xpos = data.geom_xpos[geom_id]
+            geom_xmat = data.geom_xmat[geom_id].reshape(3, 3).T
+
+            vertadr = model.mesh_vertadr[mesh_id]
+            vertnum = model.mesh_vertnum[mesh_id]
+
+            vert = model.mesh_vert[vertadr : vertadr + vertnum]
+            vert_xpos = geom_xpos + vert @ geom_xmat
+
+            body_vertices.append(vert_xpos)
+
+        # Just to make sure there's at least one vertex.
+        assert body_vertices
+
+        body_vertices = np.vstack(body_vertices)
+
+        return np.max(body_vertices, axis=0) - np.min(body_vertices, axis=0)
+
+    def _resolve_mover_size(self, mover_size: np.ndarray, mover_mesh_scale: np.ndarray, mover_shape: str | list[str]) -> np.ndarray:
+        """Resolve input size parameters to physical dimensions.
+
+        This function handles the conversion between specified sizes and actual physical dimensions,
+        which is particularly important for mesh geoms where MuJoCo allows scaling rather than direct
+        size specification.
+
+        Note: Fox 'box' and 'cylinder' shapes, the input sizes are used directly. For 'mesh' shapes,
+        the function simulates the mesh to determine its actual dimensions based on the scaling
+        parameters. All dimensions are half-sizes.
+        """
+        resolved_mover_size = np.zeros((self.num_movers, 3))
+
+        for mover_idx in range(self.num_movers):
+            if mover_size.shape == (3,):
+                _mover_size = mover_size
+            elif mover_size.shape == (self.num_movers, 3):
+                _mover_size = mover_size[mover_idx]
+            else:
+                raise ValueError(f'Size must either be of shape (3,) or (num_movers, 3), but is {mover_size.shape}.')
+
+            if mover_mesh_scale.shape == (3,):
+                _mover_mesh_scale = mover_mesh_scale
+            elif mover_size.shape == (self.num_movers, 3):
+                _mover_mesh_scale = mover_mesh_scale[mover_idx]
+            else:
+                raise ValueError(f'Scale must either be of shape (3,) or (num_movers, 3), but is {mover_mesh_scale.shape}.')
+
+            if isinstance(mover_shape, str):
+                _mover_shape = mover_shape
+            elif isinstance(mover_shape, list):
+                _mover_shape = mover_shape[mover_idx]
+            else:
+                raise ValueError(f'Shape must be specified as either a `str` or a `list[str]`, but is {type(mover_shape)}.')
+
+            if _mover_shape == 'box' or _mover_shape == 'cylinder':
+                resolved_mover_size[mover_idx] = _mover_size
+            elif _mover_shape == 'mesh':
+                asset_xml_str, body_xml_str = self._generate_mover_xml_strings(0, 0, 0, 0, '', 1, _mover_mesh_scale, _mover_shape)
+                resolved_mover_size[mover_idx] = self._find_mesh_dimensions(asset_xml_str, body_xml_str) / 2  # half-sized
+
+        return resolved_mover_size
+
+    def _resolve_mesh_path(self, path: str) -> str | None:
+        """Resolve a mesh path string to a Path object, either from predefined
+        meshes or as a direct path.
+        """
+        predefined_meshes = {
+            'beckhoff_apm4220_mover',
+            'beckhoff_apm4220_bumper',
+            'beckhoff_apm4330_mover',
+            'beckhoff_apm4330_bumper',
+            'beckhoff_apm4550_mover',
+            'beckhoff_apm4550_bumper',
+            'planar_motor_M3-06',
+            'planar_motor_M3-15',
+            'planar_motor_M3-25',
+            'planar_motor_M4-11',
+            'planar_motor_M4-18',
+        }
+
+        if path is None:
+            return None
+
+        if path in predefined_meshes:
+            return f'./{path}.stl'
+
+        return path
+
     ###################################################
     # Config Checks                                   #
     ###################################################
@@ -1501,130 +1625,6 @@ class BasicPlanarRoboticsEnv:
                 )
         # fmt: on
 
-    def _find_mesh_dimensions(self, asset_xml_str: str | None, body_xml_str: str) -> np.ndarray:
-        """Compute the axis-aligned bounding box dimensions of a mesh.
-
-        This function creates a temporary MuJoCo model from the provided XML strings,
-        simulates one step, and computes the bounding box dimensions by analyzing vertex
-        positions of all mesh geoms attached to the specified body.
-
-        Note: The function assumes all geoms are of type mesh and are attached to a body
-        named 'mover_0'.
-        """
-        model_xml_str = f"""<?xml version="1.0" encoding="utf-8"?>
-        <mujoco model="planar_robotics">
-            <compiler angle="radian" coordinate="local" meshdir="{Path(__file__).parent.resolve() / 'assets'}" />
-
-            <asset>
-                <material name="black" reflectance="0.01" shininess="0.01" specular="0.1" rgba="0.25 0.25 0.25 1" />
-                {asset_xml_str}
-            </asset>
-
-            <worldbody>{body_xml_str}</worldbody>
-        </mujoco>"""
-
-        model = mujoco.MjModel.from_xml_string(model_xml_str)  # type: ignore
-        data = mujoco.MjData(model)  # type: ignore
-        mujoco.mj_step(model, data, nstep=1)  # type: ignore
-
-        body_id = model.body('mover_0').id
-        body_vertices = []
-
-        for geom_id in range(model.ngeom):
-            if model.geom_bodyid[geom_id] != body_id:
-                continue
-
-            assert model.geom_type[geom_id] == mujoco.mjtGeom.mjGEOM_MESH  # type: ignore
-
-            mesh_id = model.geom_dataid[geom_id]
-
-            geom_xpos = data.geom_xpos[geom_id]
-            geom_xmat = data.geom_xmat[geom_id].reshape(3, 3).T
-
-            vertadr = model.mesh_vertadr[mesh_id]
-            vertnum = model.mesh_vertnum[mesh_id]
-
-            vert = model.mesh_vert[vertadr : vertadr + vertnum]
-            vert_xpos = geom_xpos + vert @ geom_xmat
-
-            body_vertices.append(vert_xpos)
-
-        # Just to make sure there's at least one vertex.
-        assert body_vertices
-
-        body_vertices = np.vstack(body_vertices)
-
-        return np.max(body_vertices, axis=0) - np.min(body_vertices, axis=0)
-
-    def _resolve_mover_size(self, mover_size: np.ndarray, mover_mesh_scale: np.ndarray, mover_shape: str | list[str]) -> np.ndarray:
-        """Resolve input size parameters to physical dimensions.
-
-        This function handles the conversion between specified sizes and actual physical dimensions,
-        which is particularly important for mesh geoms where MuJoCo allows scaling rather than direct
-        size specification.
-
-        Note: Fox 'box' and 'cylinder' shapes, the input sizes are used directly. For 'mesh' shapes,
-        the function simulates the mesh to determine its actual dimensions based on the scaling
-        parameters. All dimensions are half-sizes.
-        """
-        resolved_mover_size = np.zeros((self.num_movers, 3))
-
-        for mover_idx in range(self.num_movers):
-            if mover_size.shape == (3,):
-                _mover_size = mover_size
-            elif mover_size.shape == (self.num_movers, 3):
-                _mover_size = mover_size[mover_idx]
-            else:
-                raise ValueError(f'Size must either be of shape (3,) or (num_movers, 3), but is {mover_size.shape}.')
-
-            if mover_mesh_scale.shape == (3,):
-                _mover_mesh_scale = mover_mesh_scale
-            elif mover_size.shape == (self.num_movers, 3):
-                _mover_mesh_scale = mover_mesh_scale[mover_idx]
-            else:
-                raise ValueError(f'Scale must either be of shape (3,) or (num_movers, 3), but is {mover_mesh_scale.shape}.')
-
-            if isinstance(mover_shape, str):
-                _mover_shape = mover_shape
-            elif isinstance(mover_shape, list):
-                _mover_shape = mover_shape[mover_idx]
-            else:
-                raise ValueError(f'Shape must be specified as either a `str` or a `list[str]`, but is {type(mover_shape)}.')
-
-            if _mover_shape == 'box' or _mover_shape == 'cylinder':
-                resolved_mover_size[mover_idx] = _mover_size
-            elif _mover_shape == 'mesh':
-                asset_xml_str, body_xml_str = self._generate_mover_xml_strings(0, 0, 0, 0, '', 1, _mover_mesh_scale, _mover_shape)
-                resolved_mover_size[mover_idx] = self._find_mesh_dimensions(asset_xml_str, body_xml_str) / 2  # half-sized
-
-        return resolved_mover_size
-
-    def _resolve_mesh_path(self, path: str) -> str | None:
-        """Resolve a mesh path string to a Path object, either from predefined
-        meshes or as a direct path.
-        """
-        predefined_meshes = {
-            'beckhoff_apm4220_mover',
-            'beckhoff_apm4220_bumper',
-            'beckhoff_apm4330_mover',
-            'beckhoff_apm4330_bumper',
-            'beckhoff_apm4550_mover',
-            'beckhoff_apm4550_bumper',
-            'planar_motor_M3-06',
-            'planar_motor_M3-15',
-            'planar_motor_M3-25',
-            'planar_motor_M4-11',
-            'planar_motor_M4-18',
-        }
-
-        if path is None:
-            return None
-
-        if path in predefined_meshes:
-            return f'./{path}.stl'
-
-        return path
-
 
 class BasicPlanarRoboticsMultiAgentEnv(BasicPlanarRoboticsEnv, ParallelEnv):
     """A base class for multi-agent reinforcement learning environments in the field of planar robotics that follow the PettingZoo
@@ -1777,7 +1777,7 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
         - reset RNG, if desired
         - call ``_reset_callback(option)`` to give the user the opportunity to add more functionality
         - call ``mj_forward()``
-        - check whether there are mover or wall collisions
+        - check whether there are mover, wall, or other collisions, e.g. collisions with an obstacle
         - call ``render()``
         - get initial observation and info dictionary
 
@@ -1803,6 +1803,8 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
         mover_collision = self.check_mover_collision(
             mover_names=self.mover_names, c_size=self.c_size, add_safety_offset=False, mover_qpos=None, add_qpos_noise=True
         ).any()
+        # check for other collisions, e.g. collisions with an obstacle
+        other_collision, collision_info = self._check_for_other_collisions_callback()
 
         # rendering
         self.render()
@@ -1813,11 +1815,20 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
             info = self._get_info(
                 mover_collision=mover_collision,
                 wall_collision=wall_collision,
+                other_collision=other_collision,
                 achieved_goal=observation['achieved_goal'],
                 desired_goal=observation['desired_goal'],
+                collision_info=collision_info,
             )
         else:
-            info = self._get_info(mover_collision=mover_collision, wall_collision=wall_collision)
+            info = self._get_info(
+                mover_collision=mover_collision,
+                wall_collision=wall_collision,
+                other_collision=other_collision,
+                achieved_goal=None,
+                desired_goal=None,
+                collision_info=collision_info,
+            )
 
         return observation, info
 
@@ -1833,11 +1844,11 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
         - if the action space does not contain the specified action, the action is clipped to the interval edges of
           the action space
         - call ``_step_callback(action)`` to give the user the opportunity to add more functionality
-        - execute MuJoCo simulation steps (``mj_step()``). After each simulation step, it is checked whether there are mover or wall
-          collisions. In case of a collision, mover_collision or wall_collision will be True and no further simulation
-          steps are performed, as a real system would typically stop as well due to position lag errors.
-          In addition, ``render()`` can be called after each simulation step to provide a smooth visualization of the movement
-          (set ``render_every_cycle=True``).
+        - execute MuJoCo simulation steps (``mj_step()``). After each simulation step, it is checked whether there are mover, wall, or
+          other collisions, e.g. collisions with an obstacle. To check for other collisions besides mover and wall collisions the
+          ``_check_for_other_collisions_callback()`` is called. In case of a collision, no further simulation steps are performed, as
+          a real system would typically stop as well due to position lag errors. In addition, ``render()`` can be called after each
+          simulation step to provide a smooth visualization of the movement (set ``render_every_cycle=True``).
           The callback ``_mujoco_step_callback(action)`` can be used to add functionality BEFORE the next simulation step is executed.
           This can be useful, for example, to ensure velocity or acceleration limits within each cycle.
         - call ``render()``
@@ -1888,7 +1899,9 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
                 mover_qpos=None,
                 add_qpos_noise=True,  # would also occur in a real system
             )
-            if mover_collision or wall_collision:
+            # check for further collisions, e.g. with obstacles
+            other_collision, collision_info = self._check_for_other_collisions_callback()
+            if mover_collision or wall_collision or other_collision:
                 break
 
         self.render()
@@ -1897,20 +1910,39 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
         observation = self._get_obs()
         if isinstance(observation, dict) and 'achieved_goal' in observation.keys() and 'desired_goal' in observation.keys():
             # goal-conditioned RL
-            info = self._get_info(mover_collision, wall_collision, observation['achieved_goal'], observation['desired_goal'])
-            reward = self.compute_reward(observation['achieved_goal'], observation['desired_goal'], info)
-            terminated = self.compute_terminated(observation['achieved_goal'], observation['desired_goal'], info)
-            truncated = self.compute_truncated(observation['achieved_goal'], observation['desired_goal'], info)
+            info = self._get_info(
+                mover_collision=mover_collision,
+                wall_collision=wall_collision,
+                other_collision=other_collision,
+                achieved_goal=observation['achieved_goal'],
+                desired_goal=observation['desired_goal'],
+                collision_info=collision_info,
+            )
+            reward = self.compute_reward(
+                achieved_goal=observation['achieved_goal'], desired_goal=observation['desired_goal'], info=info
+            )
+            terminated = self.compute_terminated(
+                achieved_goal=observation['achieved_goal'], desired_goal=observation['desired_goal'], info=info
+            )
+            truncated = self.compute_truncated(
+                achieved_goal=observation['achieved_goal'], desired_goal=observation['desired_goal'], info=info
+            )
         else:
-            info = self._get_info(mover_collision, wall_collision)
-            reward = self.compute_reward(info)
-            terminated = self.compute_terminated(info)
-            truncated = self.compute_truncated(info)
+            info = self._get_info(
+                mover_collision=mover_collision,
+                wall_collision=wall_collision,
+                other_collision=other_collision,
+                achieved_goal=None,
+                desired_goal=None,
+                collision_info=collision_info,
+            )
+            reward = self.compute_reward(achieved_goal=None, desired_goal=None, info=info)
+            terminated = self.compute_terminated(achieved_goal=None, desired_goal=None, info=info)
+            truncated = self.compute_truncated(achieved_goal=None, desired_goal=None, info=info)
         # check reward shape
         if isinstance(reward, np.ndarray) and reward.shape[0] > 1:
             logger.warn(
-                f"Unexpected shape of reward returned by 'env.compute_reward()'. Current shape is: {reward.shape}, \
-                  expected shape: (1,)"
+                f"Unexpected shape of reward returned by 'env.compute_reward()'. Current shape: {reward.shape}, expected shape: (1,)"
             )
         elif isinstance(reward, np.ndarray) and reward.shape[0] == 1:
             reward = reward[0]
@@ -1940,6 +1972,18 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
         :param action: the action to apply
         """
         pass
+
+    def _check_for_other_collisions_callback(self) -> tuple[bool, dict[str, Any] | None]:
+        """A callback that is intended to use to check for other collisions besides mover or wall collisions, e.g. collisions with
+        obstacles.
+
+        :return:
+            - whether there is a collision (bool)
+            - a dictionary that is intended to contain additional information about the collision (can be None)
+        """
+        other_collision = False
+        collision_info = None
+        return other_collision, collision_info
 
     @abstractmethod
     def compute_terminated(
@@ -2008,18 +2052,23 @@ class BasicPlanarRoboticsSingleAgentEnv(BasicPlanarRoboticsEnv, gym.Env, ABC):
         self,
         mover_collision: bool,
         wall_collision: bool,
+        other_collision: bool,
         achieved_goal: np.ndarray | None = None,
         desired_goal: np.ndarray | None = None,
+        collision_info: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Return a dictionary that contains auxiliary information that may depend on the 'achieved_goal' and 'desired_goal' in
         goal-conditioned RL.
 
         :param mover_collision: whether there is a collision between two movers
-        :param wall:collision: whether there is a collision between a mover and a wall
+        :param wall_collision: whether there is a collision between a mover and a wall
+        :param other_collision: whether there are other collisions besides wall or mover collisions, e.g. collisions with an obstacle
         :param achieved_goal: a numpy array containing the goal which already achieved (goal-conditioned RL) - the shape
             depends on the shape of the observation space; defaults to None
         :param desired_goal: a numpy array containing the desired goal (goal-conditioned RL) - the shape
             depends on the shape of the observation space; defaults to None
+        :param collision_info: a dictionary that is intended to contain additional information about collisions, e.g.
+            collisions with obstacles. Defaults to None
         :return: a dictionary with auxiliary information
         """
         pass
