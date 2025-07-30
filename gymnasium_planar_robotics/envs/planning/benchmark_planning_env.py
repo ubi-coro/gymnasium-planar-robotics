@@ -587,7 +587,6 @@ class BenchmarkPlanningEnv(BasicPlanarRoboticsSingleAgentEnv):
         :param wall_collision: whether there is a collision between a mover and a wall
         :param other_collision: whether there are other collisions besides wall or mover collisions, e.g. collisions with an obstacle
             (not used in this environment)
-        :param other_collision: whether there are other collisions besides wall or mover collisions, e.g. collisions with an obstacle
         :param achieved_goal: a numpy array of shape (length achieved_goal,) containing the (x,y)-positions already achieved
         :param desired_goal: a numpy array of shape (length achieved_goal,) containing the desired (x,y)-positions
         :param collision_info: a dictionary that is intended to contain additional information about collisions, e.g.

@@ -594,8 +594,6 @@ class BenchmarkPushingEnv(BasicPlanarRoboticsSingleAgentEnv):
             object
         :param desired_goal: a numpy array of shape (length achieved_goal,) containing the desired (x,y)-position of the object
         :param collision_info: a dictionary that is intended to contain additional information about collisions, e.g.
-            collisions with obstacles. Defaults to None
-        :param collision_info: a dictionary that is intended to contain additional information about collisions, e.g.
             collisions with obstacles. Defaults to None (not used in this environment)
         :return: the info dictionary with keys 'is_success', 'mover_collision' and 'wall_collision'
         """
